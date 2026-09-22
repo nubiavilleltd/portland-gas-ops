@@ -149,8 +149,15 @@ def create_work_initiation(
         "Assigned supervisor not found.",
     )
     workers = get_employees(db, data.assigned_worker_ids)
+    scoped_employees = [assigned_supervisor, *workers]
+    if any(employee.workspace_id != requester.workspace_id for employee in scoped_employees):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="One or more selected employees are not in your workspace.",
+        )
 
     record = SafetyWorkInitiation(
+        workspace_id=requester.workspace_id,
         reference=reserve_work_initiation_reference(db),
         status=WorkInitiationStatus.submitted,
         requester_id=requester.id,
@@ -183,6 +190,7 @@ def create_work_initiation(
     for worker in workers:
         db.add(
             SafetyWorkInitiationWorker(
+                workspace_id=requester.workspace_id,
                 work_initiation_id=record.id,
                 worker_id=worker.id,
             )
@@ -281,6 +289,7 @@ def update_work_initiation(
     for worker in workers:
         db.add(
             SafetyWorkInitiationWorker(
+                workspace_id=requester.workspace_id,
                 work_initiation_id=record.id,
                 worker_id=worker.id,
             )
@@ -502,7 +511,11 @@ def validate_incident_work_initiation_rules(
             detail="Incident/hazard work requires a related incident report.",
         )
 
-    incident = get_related_incident(db, data.related_incident_report_id)
+    incident = get_related_incident(
+        db,
+        data.related_incident_report_id,
+        workspace_id=requester.workspace_id,
+    )
 
     if incident.status != IncidentReportStatus.recommended:
         raise HTTPException(
@@ -535,6 +548,7 @@ def validate_incident_work_initiation_rules(
         db,
         data.related_incident_report_id,
         exclude_work_initiation_id=exclude_work_initiation_id,
+        workspace_id=requester.workspace_id,
     )
 
     if existing_record:
@@ -567,6 +581,7 @@ def list_eligible_incidents_for_work_initiation(
         )
         .filter(
             SafetyIncidentReport.is_active == True,
+            SafetyIncidentReport.workspace_id == requester.workspace_id,
             SafetyIncidentReport.status == IncidentReportStatus.recommended,
             ~active_work_initiation_exists,
         )
@@ -591,13 +606,20 @@ def list_eligible_incidents_for_work_initiation(
     ]
 
 
-def get_related_incident(db: Session, incident_id: str) -> SafetyIncidentReport:
+def get_related_incident(
+    db: Session,
+    incident_id: str,
+    workspace_id: Optional[str] = None,
+) -> SafetyIncidentReport:
     incident = (
         db.query(SafetyIncidentReport)
         .options(joinedload(SafetyIncidentReport.hse_review))
         .filter(
             SafetyIncidentReport.id == incident_id,
             SafetyIncidentReport.is_active == True,
+            *([
+                SafetyIncidentReport.workspace_id == workspace_id
+            ] if workspace_id else []),
         )
         .first()
     )
@@ -613,6 +635,7 @@ def get_existing_active_work_initiation_for_incident(
     db: Session,
     incident_id: str,
     exclude_work_initiation_id: Optional[str] = None,
+    workspace_id: Optional[str] = None,
 ) -> Optional[SafetyWorkInitiation]:
     query = (
         db.query(SafetyWorkInitiation)
@@ -620,6 +643,9 @@ def get_existing_active_work_initiation_for_incident(
             SafetyWorkInitiation.related_incident_report_id == incident_id,
             SafetyWorkInitiation.is_active == True,
             SafetyWorkInitiation.status.in_(ACTIVE_RELATED_INCIDENT_WORK_STATUSES),
+            *([
+                SafetyWorkInitiation.workspace_id == workspace_id
+            ] if workspace_id else []),
         )
     )
 
@@ -699,7 +725,10 @@ def list_work_initiations(
             .joinedload(SafetyWorkInitiationWorker.worker)
             .joinedload(Employee.user),
         )
-        .filter(SafetyWorkInitiation.is_active == True)
+        .filter(
+            SafetyWorkInitiation.is_active == True,
+            SafetyWorkInitiation.workspace_id == employee.workspace_id,
+        )
     )
 
     if not is_safety_hse_employee(employee):
@@ -756,8 +785,8 @@ def get_work_initiation_for_current_user(
     work_initiation_id: str,
     current_user: User,
 ) -> SafetyWorkInitiation:
-    record = get_work_initiation(db, work_initiation_id)
     employee = get_employee_for_user(db, current_user)
+    record = get_work_initiation(db, work_initiation_id)
 
     if not can_view_work_initiation(db, record, employee):
         raise HTTPException(
@@ -773,6 +802,8 @@ def can_view_work_initiation(
     record: SafetyWorkInitiation,
     employee: Employee,
 ) -> bool:
+    if record.workspace_id != employee.workspace_id:
+        return False
     if is_safety_hse_employee(employee):
         return True
     if record.requester_id == employee.id:

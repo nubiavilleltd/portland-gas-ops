@@ -9,6 +9,7 @@ import uuid
 from sqlalchemy.orm import Session
 
 from app.shared.models.approval import Notification, NotificationType
+from app.employees.models import Employee
 
 
 def create_notification(
@@ -19,9 +20,20 @@ def create_notification(
     message: str,
     reference_type: str | None = None,
     reference_id: str | None = None,
+    workspace_id: str | None = None,
 ) -> Notification:
+    if workspace_id is None:
+        workspace_id = (
+            db.query(Employee.workspace_id)
+            .filter(Employee.id == recipient_id)
+            .scalar()
+        )
+    if not workspace_id:
+        raise ValueError("Cannot create a notification without a recipient workspace")
+
     notif = Notification(
         id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
         recipient_id=recipient_id,
         type=type,
         title=title,
@@ -51,12 +63,18 @@ def create_notification(
     return notif
 
 
-def mark_as_read(db: Session, notification_id: str, recipient_id: str) -> bool:
+def mark_as_read(
+    db: Session,
+    notification_id: str,
+    recipient_id: str,
+    workspace_id: str,
+) -> bool:
     notif = (
         db.query(Notification)
         .filter(
             Notification.id == notification_id,
             Notification.recipient_id == recipient_id,
+            Notification.workspace_id == workspace_id,
         )
         .first()
     )
@@ -66,10 +84,14 @@ def mark_as_read(db: Session, notification_id: str, recipient_id: str) -> bool:
     return True
 
 
-def mark_all_read(db: Session, recipient_id: str) -> int:
+def mark_all_read(db: Session, recipient_id: str, workspace_id: str) -> int:
     updated = (
         db.query(Notification)
-        .filter(Notification.recipient_id == recipient_id, Notification.is_read == False)  # noqa: E712
+        .filter(
+            Notification.recipient_id == recipient_id,
+            Notification.workspace_id == workspace_id,
+            Notification.is_read == False,
+        )  # noqa: E712
         .all()
     )
     for n in updated:

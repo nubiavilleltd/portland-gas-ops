@@ -1,10 +1,65 @@
+import hmac
 from datetime import datetime, timezone
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.shared.models.user import User
 from app.workspaces.models import Workspace, WorkspaceMembership
-from app.workspaces.schemas import WorkspaceBrandingUpdate
+from app.workspaces.schemas import WorkspaceBrandingUpdate, WorkspaceSetupClaimRequest
+
+
+def can_complete_onboarding(user_id: str, workspace: Workspace) -> bool:
+    return workspace.status == "pending_setup" and workspace.setup_owner_user_id == user_id
+
+
+def assert_branding_access(user_id: str, user_role: str, workspace: Workspace) -> None:
+    if workspace.status == "pending_setup":
+        if not can_complete_onboarding(user_id, workspace):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the workspace setup owner can complete workspace setup.",
+            )
+        return
+
+    if user_role not in {"super_admin", "admin"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Workspace branding access required.",
+        )
+
+
+def claim_workspace_setup(
+    user: User,
+    workspace: Workspace,
+    payload: WorkspaceSetupClaimRequest,
+    db: Session,
+) -> Workspace:
+    if workspace.status != "pending_setup":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This workspace has already completed setup.",
+        )
+
+    email_matches = hmac.compare_digest(
+        user.email.strip().casefold(),
+        settings.WORKSPACE_SETUP_EMAIL.strip().casefold(),
+    )
+    code_matches = hmac.compare_digest(
+        payload.code.strip().casefold(),
+        settings.WORKSPACE_SETUP_CODE.strip().casefold(),
+    )
+    if not email_matches or not code_matches:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The setup code or account email is not valid for this workspace.",
+        )
+
+    workspace.setup_owner_user_id = user.id
+    db.commit()
+    db.refresh(workspace)
+    return workspace
 
 
 def get_workspace_membership(user_id: str, db: Session) -> WorkspaceMembership:
@@ -66,8 +121,10 @@ def update_branding(
 
     workspace.name = payload.name
     workspace.logo_url = logo_url
+    workspace.logo_background = payload.logo_background
     workspace.primary_color = payload.primary_color
     workspace.secondary_color = payload.secondary_color
+    workspace.status = "active"
     workspace.onboarding_completed_at = workspace.onboarding_completed_at or datetime.now(timezone.utc)
     db.commit()
     db.refresh(workspace)

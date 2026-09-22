@@ -77,3 +77,5 @@ app/
 | `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token TTL |
 | `ALLOWED_ORIGINS` | Comma-separated CORS origins |
 | `ENVIRONMENT` | `development` or `production` |
+| `WORKSPACE_SETUP_EMAIL` | Temporary initial workspace setup email |
+| `WORKSPACE_SETUP_CODE` | Temporary initial workspace setup code; override before deployment |

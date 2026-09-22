@@ -9,8 +9,13 @@ import {
   DEFAULT_SECONDARY_COLOR,
   normalizeHexColor,
   useCompanyBranding,
+  type LogoBackground,
 } from "@/lib/company-branding";
 import BrandColorFields from "@/components/branding/BrandColorFields";
+import BrandingPreview from "@/components/branding/BrandingPreview";
+import LogoBackgroundPicker from "@/components/branding/LogoBackgroundPicker";
+import LogoEditor from "@/components/branding/LogoEditor";
+import { getLogoWarnings, inspectLogoFile, type LogoInspection } from "@/lib/branding-quality";
 import {
   dataUrlToLogoFile,
   toCompanyBranding,
@@ -72,7 +77,7 @@ function OptionCard({
 export default function WorkspaceSettingsForm() {
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const { name, logoDataUrl, primaryColor, secondaryColor, setBranding } = useCompanyBranding();
+  const { name, logoDataUrl, logoBackground: storedLogoBackground, primaryColor, secondaryColor, setBranding } = useCompanyBranding();
   const {
     enabledFeatures,
     enabledAutomations,
@@ -80,10 +85,14 @@ export default function WorkspaceSettingsForm() {
   } = useWorkspacePreferences();
   const [companyName, setCompanyName] = useState(name);
   const [companyLogo, setCompanyLogo] = useState<string | null>(logoDataUrl);
+  const [appLogoBackground, setAppLogoBackground] = useState<LogoBackground>(storedLogoBackground);
   const [appPrimaryColor, setAppPrimaryColor] = useState(primaryColor);
   const [appSecondaryColor, setAppSecondaryColor] = useState(secondaryColor);
   const [logoFileName, setLogoFileName] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoInspection, setLogoInspection] = useState<LogoInspection | null>(null);
+  const [showLogoEditor, setShowLogoEditor] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [selectedFeatures, setSelectedFeatures] = useState<FeatureId[]>(
     enabledFeatures.length ? enabledFeatures : DEFAULT_ENABLED_FEATURES,
   );
@@ -108,6 +117,7 @@ export default function WorkspaceSettingsForm() {
       setCompanyLogo(String(reader.result));
       setLogoFileName(file.name);
       setLogoFile(file);
+      void inspectLogoFile(file).then(setLogoInspection).catch(() => setLogoInspection(null));
     };
     reader.onerror = () => setError("We could not read that logo. Please try again.");
     reader.readAsDataURL(file);
@@ -117,6 +127,8 @@ export default function WorkspaceSettingsForm() {
     setCompanyLogo(null);
     setLogoFileName("");
     setLogoFile(null);
+    setLogoInspection(null);
+    setShowLogoEditor(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
@@ -138,6 +150,7 @@ export default function WorkspaceSettingsForm() {
   function resetForm() {
     setCompanyName(name);
     setCompanyLogo(logoDataUrl);
+    setAppLogoBackground(storedLogoBackground);
     setAppPrimaryColor(primaryColor);
     setAppSecondaryColor(secondaryColor);
     setLogoFileName("");
@@ -173,11 +186,6 @@ export default function WorkspaceSettingsForm() {
 
     setError(null);
     setIsSaving(true);
-    setPreferences({
-      enabledFeatures: selectedFeatures,
-      enabledAutomations: selectedAutomations,
-    });
-
     try {
       let logoUrl = companyLogo.startsWith("https://") ? companyLogo : undefined;
       const fileToUpload = logoFile ?? (
@@ -191,6 +199,7 @@ export default function WorkspaceSettingsForm() {
 
       const workspace = await updateWorkspaceBranding({
         name: localBranding.name,
+        logoBackground: appLogoBackground,
         primaryColor: localBranding.primaryColor,
         secondaryColor: localBranding.secondaryColor,
         logoUrl,
@@ -199,6 +208,11 @@ export default function WorkspaceSettingsForm() {
       setCompanyLogo(workspace.logo_url);
       setLogoFile(null);
       setLogoFileName("");
+      setLogoInspection(null);
+      setPreferences({
+        enabledFeatures: selectedFeatures,
+        enabledAutomations: selectedAutomations,
+      });
       toast.success("Workspace settings saved for everyone.");
     } catch {
       setError("Workspace settings could not be saved. Check your connection and try again.");
@@ -249,11 +263,21 @@ export default function WorkspaceSettingsForm() {
                     Replace logo
                   </button>
                   {companyLogo && (
-                    <button type="button" onClick={clearLogo} className="inline-flex items-center gap-1 text-sm text-brand-text-secondary hover:text-red-600">
-                      <X size={14} /> Remove
-                    </button>
+                    <>
+                      <button type="button" onClick={() => setShowLogoEditor(true)} className="inline-flex items-center gap-1 text-sm text-brand-purple hover:text-brand-purple-dark">
+                        Adjust crop
+                      </button>
+                      <button type="button" onClick={clearLogo} className="inline-flex items-center gap-1 text-sm text-brand-text-secondary hover:text-red-600">
+                        <X size={14} /> Remove
+                      </button>
+                    </>
                   )}
                 </div>
+                {logoInspection && getLogoWarnings(logoInspection).length > 0 && (
+                  <div className="mt-3 space-y-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    {getLogoWarnings(logoInspection).map((warning) => <p key={warning}>{warning}</p>)}
+                  </div>
+                )}
                 <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" onChange={(event) => handleLogoChange(event.target.files?.[0])} />
               </div>
             </div>
@@ -267,6 +291,23 @@ export default function WorkspaceSettingsForm() {
         onPrimaryChange={setAppPrimaryColor}
         onSecondaryChange={setAppSecondaryColor}
       />
+      <LogoBackgroundPicker value={appLogoBackground} onChange={setAppLogoBackground} />
+      <button
+        type="button"
+        onClick={() => setShowPreview((current) => !current)}
+        className="w-fit rounded-lg border border-brand-border px-3 py-2 text-sm font-medium text-brand-purple transition hover:border-brand-purple hover:bg-brand-purple/5"
+      >
+        {showPreview ? "Hide workspace preview" : "Preview workspace branding"}
+      </button>
+      {showPreview && (
+        <BrandingPreview
+          companyName={companyName}
+          logoUrl={companyLogo}
+          logoBackground={appLogoBackground}
+          primaryColor={normalizeHexColor(appPrimaryColor, DEFAULT_PRIMARY_COLOR)}
+          secondaryColor={normalizeHexColor(appSecondaryColor, DEFAULT_SECONDARY_COLOR)}
+        />
+      )}
 
       <section>
         <h3 className="text-sm font-semibold text-brand-text-primary">Workspace features</h3>
@@ -313,6 +354,19 @@ export default function WorkspaceSettingsForm() {
           Cancel
         </button>
       </div>
+      {showLogoEditor && companyLogo && (
+        <LogoEditor
+          src={companyLogo}
+          onClose={() => setShowLogoEditor(false)}
+          onApply={(file, previewUrl) => {
+            setCompanyLogo(previewUrl);
+            setLogoFile(file);
+            setLogoFileName("Adjusted logo");
+            void inspectLogoFile(file).then(setLogoInspection).catch(() => setLogoInspection(null));
+            setShowLogoEditor(false);
+          }}
+        />
+      )}
     </form>
   );
 }

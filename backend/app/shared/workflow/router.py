@@ -59,6 +59,7 @@ from app.shared.workflow.schemas import (
     AssignmentSet, AssignmentOut,
 )
 from app.shared.services.workflow_engine import WorkflowEngine
+from app.workspaces.context import WorkspaceContext, get_workspace_context
 
 router = APIRouter()
 
@@ -70,8 +71,8 @@ class ActionRequest(BaseModel):
     comment: Optional[str] = None
 
 
-def _employee_id(current_user: User, db: Session) -> str:
-    return get_employee_by_user_id(current_user.id, db).id
+def _employee_id(current_user: User, db: Session, workspace_id: str) -> str:
+    return get_employee_by_user_id(current_user.id, db, workspace_id).id
 
 
 # ── 1. Literal root routes ────────────────────────────────────────────────────
@@ -80,8 +81,9 @@ def _employee_id(current_user: User, db: Session) -> str:
 def list_workflows(
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return svc.list_workflows(db)
+    return svc.list_workflows(db, context.workspace.id)
 
 
 @router.post("", response_model=WorkflowDetail, status_code=201)
@@ -89,8 +91,9 @@ def create_workflow(
     data: WorkflowCreate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    wf = svc.create_workflow(data, db)
+    wf = svc.create_workflow(data, db, context.workspace.id)
     db.commit()
     db.refresh(wf)
     return {
@@ -111,8 +114,9 @@ def create_workflow(
 def list_assignments(
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return svc.list_assignments(db)
+    return svc.list_assignments(db, context.workspace.id)
 
 
 @router.put("/assignments", response_model=AssignmentOut)
@@ -120,9 +124,10 @@ def set_assignment(
     data: AssignmentSet,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    emp_id = _employee_id(current_user, db)
-    result = svc.set_assignment(data, emp_id, db)
+    emp_id = _employee_id(current_user, db, context.workspace.id)
+    result = svc.set_assignment(data, emp_id, db, context.workspace.id)
     db.commit()
     return result
 
@@ -135,6 +140,7 @@ def get_requester_picks(
     request_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """
     Returns the requester_pick assignments from the latest approval attempt
@@ -156,6 +162,7 @@ def get_requester_picks(
         .filter(
             ApprovalRequest.request_type == request_type,
             ApprovalRequest.request_id  == request_id,
+            ApprovalRequest.workspace_id == context.workspace.id,
         )
         .order_by(ApprovalRequest.attempt_number.desc())
         .first()
@@ -166,7 +173,10 @@ def get_requester_picks(
     wf = (
         db.query(ApprovalWorkflow)
         .options(joinedload(ApprovalWorkflow.steps))
-        .filter(ApprovalWorkflow.id == ar.workflow_id)
+        .filter(
+            ApprovalWorkflow.id == ar.workflow_id,
+            ApprovalWorkflow.workspace_id == context.workspace.id,
+        )
         .first()
     )
     if not wf:
@@ -183,6 +193,7 @@ def get_requester_picks(
         db.query(ApprovalStepAssignment)
         .filter(
             ApprovalStepAssignment.approval_request_id == ar.id,
+            ApprovalStepAssignment.workspace_id == context.workspace.id,
             ApprovalStepAssignment.step_number.in_(pick_step_numbers),
         )
         .all()
@@ -213,6 +224,7 @@ def workflow_for_type(
     request_type: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """
     Returns the active workflow + steps for a given request type.
@@ -229,7 +241,10 @@ def workflow_for_type(
 
     assignment = (
         db.query(WorkflowAssignment)
-        .filter(WorkflowAssignment.request_type == request_type)
+        .filter(
+            WorkflowAssignment.request_type == request_type,
+            WorkflowAssignment.workspace_id == context.workspace.id,
+        )
         .first()
     )
     if not assignment:
@@ -244,7 +259,11 @@ def workflow_for_type(
             .joinedload(GroupMember.employee)
             .joinedload(Employee.user)
         )
-        .filter(ApprovalWorkflow.id == assignment.workflow_id, ApprovalWorkflow.is_active == True)  # noqa: E712
+        .filter(
+            ApprovalWorkflow.id == assignment.workflow_id,
+            ApprovalWorkflow.workspace_id == context.workspace.id,
+            ApprovalWorkflow.is_active == True,
+        )  # noqa: E712
         .first()
     )
     if not wf:
@@ -288,9 +307,16 @@ def admin_all_requests(
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    engine = WorkflowEngine(db)
-    return engine.all_requests_admin(skip=skip, limit=limit, request_type=request_type, status=status)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.all_requests_admin(
+        context.workspace.id,
+        skip=skip,
+        limit=limit,
+        request_type=request_type,
+        status=status,
+    )
 
 
 # ── 5. Employee: my approvals & my requests (literal — before /{workflow_id}) ─
@@ -299,31 +325,34 @@ def admin_all_requests(
 def my_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    return engine.my_approvals(employee.id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.my_approvals(employee.id, context.workspace.id)
 
 
 @router.get("/my-requests")
 def my_requests(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    return engine.my_requests(employee.id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.my_requests(employee.id, context.workspace.id)
 
 
 @router.get("/my-acted-approvals")
 def my_acted_approvals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
     """Returns all requests this employee has acted on (approved/rejected/returned)."""
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    return engine.my_acted_approvals(employee.id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.my_acted_approvals(employee.id, context.workspace.id)
 
 
 # ── 6. Approval actions (literal prefix — before /{workflow_id}) ─────────────
@@ -400,10 +429,11 @@ def approve_request(
     body: ActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    ar = engine.get_approval_request(approval_request_id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    ar = engine.get_approval_request(approval_request_id, context.workspace.id)
 
     # Capture before engine mutates the approval request
     _request_type = ar.request_type
@@ -447,10 +477,11 @@ def reject_request(
     body: ActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    ar = engine.get_approval_request(approval_request_id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    ar = engine.get_approval_request(approval_request_id, context.workspace.id)
 
     def on_rejected():
         _update_source_status(ar.request_type, ar.request_id, "rejected", db)
@@ -466,10 +497,11 @@ def return_request(
     body: ActionRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    employee = get_employee_by_user_id(current_user.id, db)
-    engine = WorkflowEngine(db)
-    ar = engine.get_approval_request(approval_request_id)
+    employee = get_employee_by_user_id(current_user.id, db, context.workspace.id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    ar = engine.get_approval_request(approval_request_id, context.workspace.id)
 
     # Asset requests have no return-for-revision path — only Approve or Deny
     if ar.request_type == "asset":
@@ -494,9 +526,10 @@ def get_audit_trail(
     request_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    engine = WorkflowEngine(db)
-    return engine.audit_trail(request_type, request_id)
+    engine = WorkflowEngine(db, context.workspace.id)
+    return engine.audit_trail(request_type, request_id, context.workspace.id)
 
 
 # ── 8. Workflow detail routes (path param — after ALL literals) ───────────────
@@ -506,8 +539,9 @@ def get_workflow(
     workflow_id: str,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return svc.get_workflow(workflow_id, db)
+    return svc.get_workflow(workflow_id, db, context.workspace.id)
 
 
 @router.patch("/{workflow_id}", response_model=WorkflowDetail)
@@ -516,10 +550,11 @@ def update_workflow(
     data: WorkflowUpdate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    svc.update_workflow(workflow_id, data, db)
+    svc.update_workflow(workflow_id, data, db, context.workspace.id)
     db.commit()
-    return svc.get_workflow(workflow_id, db)
+    return svc.get_workflow(workflow_id, db, context.workspace.id)
 
 
 @router.delete("/{workflow_id}", status_code=204)
@@ -527,8 +562,9 @@ def delete_workflow(
     workflow_id: str,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    svc.delete_workflow(workflow_id, db)
+    svc.delete_workflow(workflow_id, db, context.workspace.id)
     db.commit()
 
 
@@ -540,8 +576,9 @@ def reorder_steps(
     data: ReorderSteps,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    result = svc.reorder_steps(workflow_id, data, db)
+    result = svc.reorder_steps(workflow_id, data, db, context.workspace.id)
     db.commit()
     return result
 
@@ -552,8 +589,9 @@ def add_step(
     data: StepCreate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    result = svc.add_step(workflow_id, data, db)
+    result = svc.add_step(workflow_id, data, db, context.workspace.id)
     db.commit()
     return result
 
@@ -565,8 +603,9 @@ def update_step(
     data: StepUpdate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    result = svc.update_step(workflow_id, step_id, data, db)
+    result = svc.update_step(workflow_id, step_id, data, db, context.workspace.id)
     db.commit()
     return result
 
@@ -577,6 +616,7 @@ def delete_step(
     step_id: str,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    svc.delete_step(workflow_id, step_id, db)
+    svc.delete_step(workflow_id, step_id, db, context.workspace.id)
     db.commit()

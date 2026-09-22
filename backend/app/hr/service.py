@@ -204,7 +204,7 @@ def _reliever_from_picks(picked_approvers: dict[int, str] | None) -> str | None:
     return picked_approvers[first_step]
 
 
-def _requester_pick_steps(db: Session, request_type: str) -> list[int]:
+def _requester_pick_steps(db: Session, request_type: str, workspace_id: str) -> list[int]:
     """
     Step numbers of the requester_pick steps on the workflow assigned to
     request_type. Used so we never hard-code a step number — an admin can
@@ -216,7 +216,10 @@ def _requester_pick_steps(db: Session, request_type: str) -> list[int]:
 
     assignment = (
         db.query(WorkflowAssignment)
-        .filter(WorkflowAssignment.request_type == request_type)
+        .filter(
+            WorkflowAssignment.request_type == request_type,
+            WorkflowAssignment.workspace_id == workspace_id,
+        )
         .first()
     )
     if not assignment:
@@ -624,7 +627,7 @@ def submit_leave_request_for_approval(
     if picked_approvers:
         resolved_picks = picked_approvers
     elif leave_request.reliever_id:
-        pick_steps = _requester_pick_steps(db, "leave_request")
+        pick_steps = _requester_pick_steps(db, "leave_request", requester.workspace_id)
         resolved_picks = {step: leave_request.reliever_id for step in pick_steps[:1]}
     else:
         resolved_picks = None

@@ -14,8 +14,16 @@ class Workspace(Base):
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = Column(String(255), nullable=False, default="Your Company")
     logo_url = Column(String(1000), nullable=True)
+    logo_background = Column(String(10), nullable=False, default="light")
     primary_color = Column(String(7), nullable=False, default="#7234BD")
     secondary_color = Column(String(7), nullable=False, default="#1C043B")
+    status = Column(String(20), nullable=False, default="pending_setup")
+    setup_owner_user_id = Column(
+        CHAR(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     onboarding_completed_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(
@@ -30,6 +38,7 @@ class Workspace(Base):
         back_populates="workspace",
         cascade="all, delete-orphan",
     )
+    setup_owner = relationship("User", foreign_keys=[setup_owner_user_id])
 
 
 class WorkspaceMembership(Base):

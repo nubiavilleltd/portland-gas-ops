@@ -24,6 +24,7 @@ from app.core.database import get_db
 from app.shared.dependencies import get_current_user, require_admin, require_roles
 from app.shared.models.user import User
 from app.employees.service import get_employee_by_user_id
+from app.workspaces.context import WorkspaceContext, get_workspace_context
 from app.setups import service
 from app.setups.schemas import (
     DepartmentCreate, DepartmentUpdate, DepartmentListItem, DepartmentDetail,
@@ -43,18 +44,18 @@ _user      = Depends(get_current_user)
 def list_departments(
     active_only: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = _user,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.list_departments(db, active_only=active_only)
+    return service.list_departments(db, context.workspace.id, active_only=active_only)
 
 
 @router.get("/departments/{dept_id}", response_model=DepartmentDetail)
 def get_department(
     dept_id: str,
     db: Session = Depends(get_db),
-    current_user: User = _user,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.get_department(dept_id, db)
+    return service.get_department(dept_id, db, context.workspace.id)
 
 
 @router.post("/departments", response_model=DepartmentDetail, status_code=201)
@@ -62,8 +63,9 @@ def create_department(
     data: DepartmentCreate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.create_department(data, db)
+    return service.create_department(data, db, context.workspace.id)
 
 
 @router.patch("/departments/{dept_id}", response_model=DepartmentDetail)
@@ -72,8 +74,9 @@ def update_department(
     data: DepartmentUpdate,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.update_department(dept_id, data, db)
+    return service.update_department(dept_id, data, db, context.workspace.id)
 
 
 @router.delete("/departments/{dept_id}", status_code=204)
@@ -81,8 +84,9 @@ def delete_department(
     dept_id: str,
     db: Session = Depends(get_db),
     current_user: User = _admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    service.delete_department(dept_id, db)
+    service.delete_department(dept_id, db, context.workspace.id)
 
 
 # ── Groups ─────────────────────────────────────────────────────────────────────
@@ -91,8 +95,9 @@ def delete_department(
 def list_groups(
     db: Session = Depends(get_db),
     current_user: User = _any_admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.list_groups(db)
+    return service.list_groups(db, context.workspace.id)
 
 
 @router.post("/groups", response_model=GroupDetail, status_code=201)
@@ -100,9 +105,10 @@ def create_group(
     data: GroupCreate,
     db: Session = Depends(get_db),
     current_user: User = _any_admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    emp = get_employee_by_user_id(current_user.id, db)
-    g = service.create_group(data, emp.id, db)
+    emp = get_employee_by_user_id(context.user.id, db, context.workspace.id)
+    g = service.create_group(data, emp.id, db, context.workspace.id)
     db.commit()
     db.refresh(g)
     return {
@@ -121,8 +127,9 @@ def get_group(
     group_id: str,
     db: Session = Depends(get_db),
     current_user: User = _any_admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    return service.get_group(group_id, db)
+    return service.get_group(group_id, db, context.workspace.id)
 
 
 @router.patch("/groups/{group_id}", response_model=GroupDetail)
@@ -131,10 +138,11 @@ def update_group(
     data: GroupUpdate,
     db: Session = Depends(get_db),
     current_user: User = _any_admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    service.update_group(group_id, data, db)
+    service.update_group(group_id, data, db, context.workspace.id)
     db.commit()
-    return service.get_group(group_id, db)
+    return service.get_group(group_id, db, context.workspace.id)
 
 
 @router.post("/groups/{group_id}/members", response_model=MemberOut, status_code=201)
@@ -143,8 +151,9 @@ def add_group_member(
     data: AddMember,
     db: Session = Depends(get_db),
     current_user: User = _any_admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    result = service.add_group_member(group_id, data, db)
+    result = service.add_group_member(group_id, data, db, context.workspace.id)
     db.commit()
     return result
 
@@ -155,6 +164,7 @@ def remove_group_member(
     member_id: str,
     db: Session = Depends(get_db),
     current_user: User = _any_admin,
+    context: WorkspaceContext = Depends(get_workspace_context),
 ):
-    service.remove_group_member(group_id, member_id, db)
+    service.remove_group_member(group_id, member_id, db, context.workspace.id)
     db.commit()

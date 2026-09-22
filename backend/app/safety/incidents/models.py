@@ -56,6 +56,12 @@ class SafetyIncidentReport(Base):
     __tablename__ = "safety_incident_reports"
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
 
     reference = Column(String(50), unique=True, nullable=False, index=True)
 
@@ -154,6 +160,12 @@ class SafetyIncidentHseReview(Base):
     )
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     incident_report_id = Column(
         CHAR(36),
         ForeignKey("safety_incident_reports.id"),

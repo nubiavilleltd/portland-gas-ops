@@ -89,6 +89,12 @@ class SafetyChecklistResponse(Base):
     __tablename__ = "safety_checklist_responses"
 
     id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    workspace_id = Column(
+        CHAR(36),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     template_id = Column(CHAR(36), ForeignKey("safety_checklist_templates.id"), nullable=False, index=True)
     template_code_snapshot = Column(String(100), nullable=False)
     template_name_snapshot = Column(String(255), nullable=False)

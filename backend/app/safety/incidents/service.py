@@ -88,6 +88,7 @@ def add_incident_audit_event(
     db.add(
         WorkflowAuditTrail(
             id=str(uuid.uuid4()),
+            workspace_id=actor.workspace_id,
             workflow_id=None,
             request_id=report.id,
             request_type=INCIDENT_AUDIT_REQUEST_TYPE,
@@ -181,6 +182,7 @@ def create_incident_report(
     )
 
     report = SafetyIncidentReport(
+        workspace_id=employee.workspace_id,
         reference=reserve_incident_reference(db),
         status=IncidentReportStatus.submitted,
         title=data.title,
@@ -237,6 +239,9 @@ def can_employee_view_incident(
     report: SafetyIncidentReport,
     employee: Employee,
 ) -> bool:
+    if report.workspace_id != employee.workspace_id:
+        return False
+
     if is_hse_employee(employee):
         return True
 
@@ -293,6 +298,12 @@ def create_hse_review(
     inspector: Employee,
 ) -> SafetyIncidentHseReview:
     report = get_incident_report(db, incident_id)
+
+    if report.workspace_id != inspector.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident report not found.",
+        )
 
     if report.status != IncidentReportStatus.submitted:
         raise HTTPException(
@@ -364,6 +375,7 @@ def create_hse_review(
             )
 
     review = SafetyIncidentHseReview(
+        workspace_id=inspector.workspace_id,
         incident_report_id=report.id,
         inspector_id=inspector.id,
         confirmed_report_type=data.confirmed_report_type,
@@ -472,7 +484,10 @@ def list_incident_reports(
             .joinedload(SafetyIncidentHseReview.action_owner)
             .joinedload(Employee.user),
         )
-        .filter(SafetyIncidentReport.is_active == True)
+        .filter(
+            SafetyIncidentReport.is_active == True,
+            SafetyIncidentReport.workspace_id == employee.workspace_id,
+        )
     )
 
     if not is_hse_employee(employee):
@@ -568,6 +583,7 @@ def list_eligible_work_authorizations_for_incident(
         )
         .filter(
             SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.workspace_id == employee.workspace_id,
             SafetyWorkAuthorization.status.in_(INCIDENT_RELATED_AUTHORIZATION_STATUSES),
             ~active_closeout_exists,
         )
@@ -602,6 +618,7 @@ def validate_related_work_authorization_for_incident(
         .filter(
             SafetyWorkAuthorization.id == work_authorization_id,
             SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.workspace_id == employee.workspace_id,
         )
         .first()
     )
@@ -654,6 +671,9 @@ def can_view_related_work_authorization(
     authorization: SafetyWorkAuthorization,
     employee: Employee,
 ) -> bool:
+    if authorization.workspace_id != employee.workspace_id:
+        return False
+
     if authorization.requester_id == employee.id:
         return True
 
@@ -689,6 +709,14 @@ def get_incident_report(
     incident_id: str,
     current_user: Optional[User] = None,
 ) -> SafetyIncidentReport:
+    employee = get_employee_for_user(db, current_user) if current_user is not None else None
+    filters = [
+        SafetyIncidentReport.id == incident_id,
+        SafetyIncidentReport.is_active == True,
+    ]
+    if employee is not None:
+        filters.append(SafetyIncidentReport.workspace_id == employee.workspace_id)
+
     report = (
         db.query(SafetyIncidentReport)
         .options(
@@ -700,10 +728,7 @@ def get_incident_report(
             .joinedload(SafetyIncidentHseReview.action_owner)
             .joinedload(Employee.user),
         )
-        .filter(
-            SafetyIncidentReport.id == incident_id,
-            SafetyIncidentReport.is_active == True,
-        )
+        .filter(*filters)
         .first()
     )
 
@@ -714,7 +739,6 @@ def get_incident_report(
         )
 
     if current_user is not None:
-        employee = get_employee_for_user(db, current_user)
         require_incident_view_access(report, employee)
 
     report.attachments = list_incident_documents(db, report.id)
@@ -796,8 +820,8 @@ def update_incident_report(
     data: IncidentReportUpdate,
     current_user: User,
 ) -> SafetyIncidentReport:
-    report = get_incident_report(db, incident_id)
     employee = get_employee_for_user(db, current_user)
+    report = get_incident_report(db, incident_id, current_user=current_user)
     require_incident_reporter_edit_access(report, employee)
 
     update_data = data.model_dump(exclude_unset=True)
@@ -823,7 +847,7 @@ def resolve_incident_with_closeout(
     data: IncidentResolveCreate,
     current_user: User,
 ) -> SafetyIncidentReport:
-    get_incident_report(db, incident_id)
+    get_incident_report(db, incident_id, current_user=current_user)
     get_employee_for_user(db, current_user)
     _ = data
 
@@ -843,6 +867,12 @@ def close_resolved_incident(
     inspector: Employee,
 ) -> SafetyIncidentReport:
     report = get_incident_report(db, incident_id)
+
+    if report.workspace_id != inspector.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident report not found.",
+        )
 
     if report.status != IncidentReportStatus.pending_hse_verification:
         raise HTTPException(
@@ -886,6 +916,12 @@ def mark_incident_not_resolved_after_verification(
     inspector: Employee,
 ) -> SafetyIncidentReport:
     report = get_incident_report(db, incident_id)
+
+    if report.workspace_id != inspector.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Incident report not found.",
+        )
 
     if report.status != IncidentReportStatus.pending_hse_verification:
         raise HTTPException(
@@ -931,6 +967,10 @@ def get_closeout_for_incident_resolution(
         db.query(SafetyWorkCloseOut)
         .join(SafetyWorkCloseOut.work_authorization)
         .join(SafetyWorkAuthorization.work_initiation)
+        .join(
+            SafetyIncidentReport,
+            SafetyIncidentReport.id == incident_id,
+        )
         .filter(
             SafetyWorkCloseOut.id == work_closeout_id,
             SafetyWorkCloseOut.is_active == True,
@@ -938,6 +978,7 @@ def get_closeout_for_incident_resolution(
                 (WorkCloseOutStatus.approved, WorkCloseOutStatus.acknowledged),
             ),
             SafetyWorkInitiation.related_incident_report_id == incident_id,
+            SafetyWorkCloseOut.workspace_id == SafetyIncidentReport.workspace_id,
         )
         .first()
     )
@@ -956,8 +997,8 @@ def deactivate_incident_report(
     incident_id: str,
     current_user: User,
 ) -> None:
-    report = get_incident_report(db, incident_id)
     employee = get_employee_for_user(db, current_user)
+    report = get_incident_report(db, incident_id, current_user=current_user)
     if not is_hse_employee(employee):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

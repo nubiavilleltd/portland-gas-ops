@@ -167,6 +167,7 @@ def create_work_closeout(
     authorization = get_work_authorization_for_closeout(
         db,
         data.work_authorization_id,
+        workspace_id=requester.workspace_id,
     )
 
     validate_work_closeout_create_rules(
@@ -177,6 +178,7 @@ def create_work_closeout(
     )
 
     record = SafetyWorkCloseOut(
+        workspace_id=requester.workspace_id,
         reference=reserve_work_closeout_reference(db),
         status=WorkCloseOutStatus.submitted,
         requester_id=requester.id,
@@ -408,6 +410,7 @@ def list_eligible_work_authorizations_for_closeout(
         )
         .filter(
             SafetyWorkAuthorization.is_active == True,
+            SafetyWorkAuthorization.workspace_id == requester.workspace_id,
             SafetyWorkAuthorization.status == WorkAuthorizationStatus.approved,
             ~active_closeout_exists,
             or_(
@@ -519,6 +522,7 @@ def add_work_closeout_checklist_responses(
                 answers=answers,
             ),
             answered_by=answered_by,
+            workspace_id=record.workspace_id,
         )
 
 
@@ -548,6 +552,7 @@ def get_existing_active_closeout_for_authorization(
 def get_work_authorization_for_closeout(
     db: Session,
     work_authorization_id: str,
+    workspace_id: Optional[str] = None,
 ) -> SafetyWorkAuthorization:
     authorization = (
         db.query(SafetyWorkAuthorization)
@@ -565,6 +570,9 @@ def get_work_authorization_for_closeout(
         .filter(
             SafetyWorkAuthorization.id == work_authorization_id,
             SafetyWorkAuthorization.is_active == True,
+            *([
+                SafetyWorkAuthorization.workspace_id == workspace_id
+            ] if workspace_id else []),
         )
         .first()
     )
@@ -611,6 +619,7 @@ def list_work_closeouts(
             .joinedload(Employee.user),
         )
         .filter(SafetyWorkCloseOut.is_active == True)
+        .filter(SafetyWorkCloseOut.workspace_id == employee.workspace_id)
     )
 
     if not is_safety_hse_employee(employee):
@@ -692,6 +701,9 @@ def can_view_work_closeout(
     record: SafetyWorkCloseOut,
     employee: Employee,
 ) -> bool:
+    if record.workspace_id != employee.workspace_id:
+        return False
+
     if is_safety_hse_employee(employee):
         return True
     if record.requester_id == employee.id:
@@ -781,6 +793,11 @@ def supervisor_decision(
 ) -> tuple[SafetyWorkCloseOut, str]:
     reviewer = get_employee_for_user(db, current_user)
     record = get_work_closeout(db, work_closeout_id)
+    if record.workspace_id != reviewer.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work close-out not found.",
+        )
 
     validate_supervisor_decision(record, data, reviewer)
 
@@ -835,6 +852,11 @@ def operations_head_decision(
 ) -> tuple[SafetyWorkCloseOut, str]:
     reviewer = get_employee_for_user(db, current_user)
     record = get_work_closeout(db, work_closeout_id)
+    if record.workspace_id != reviewer.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work close-out not found.",
+        )
 
     validate_operations_head_decision(record, data, reviewer)
 
@@ -888,6 +910,12 @@ def hse_decision(
     inspector: Employee,
 ) -> tuple[SafetyWorkCloseOut, str]:
     record = get_work_closeout(db, work_closeout_id)
+
+    if record.workspace_id != inspector.workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Work close-out not found.",
+        )
 
     validate_hse_decision(record, data)
 
@@ -1107,6 +1135,7 @@ def add_closeout_review(
         )
 
     review = SafetyCloseOutReview(
+        workspace_id=record.workspace_id,
         work_closeout_id=record.id,
         reviewer_role=reviewer_role.value,
         reviewer_id=reviewer_id,
@@ -1173,6 +1202,7 @@ def move_linked_incident_to_hse_verification(
     db.add(
         WorkflowAuditTrail(
             id=str(uuid.uuid4()),
+            workspace_id=actor.workspace_id,
             workflow_id=None,
             request_id=incident.id,
             request_type="incident_report",

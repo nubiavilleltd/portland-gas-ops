@@ -17,14 +17,19 @@ from app.setups.schemas import (
 
 # ── Departments ────────────────────────────────────────────────────────────────
 
-def list_departments(db: Session, active_only: bool = False) -> list[dict]:
+def list_departments(db: Session, workspace_id: str, active_only: bool = False) -> list[dict]:
     from app.shared.models.user import User
     # Alias Employee so the hod join doesn't clash with the employee_count join
     HodEmployee = db.query(Employee).subquery()
 
     q = (
         db.query(Department, func.count(Employee.id).label("employee_count"))
-        .outerjoin(Employee, Employee.department_id == Department.id)
+        .outerjoin(
+            Employee,
+            (Employee.department_id == Department.id)
+            & (Employee.workspace_id == workspace_id),
+        )
+        .filter(Department.workspace_id == workspace_id)
         .group_by(Department.id)
     )
     if active_only:
@@ -39,7 +44,10 @@ def list_departments(db: Session, active_only: bool = False) -> list[dict]:
         hod_rows = (
             db.query(Employee.id, User.first_name, User.last_name)
             .join(User, User.id == Employee.user_id)
-            .filter(Employee.id.in_(hod_ids))
+            .filter(
+                Employee.id.in_(hod_ids),
+                Employee.workspace_id == workspace_id,
+            )
             .all()
         )
         hod_name_map = {
@@ -64,18 +72,26 @@ def list_departments(db: Session, active_only: bool = False) -> list[dict]:
     ]
 
 
-def get_department(dept_id: str, db: Session) -> Department:
-    dept = db.query(Department).filter(Department.id == dept_id).first()
+def get_department(dept_id: str, db: Session, workspace_id: str) -> Department:
+    dept = db.query(Department).filter(
+        Department.id == dept_id,
+        Department.workspace_id == workspace_id,
+    ).first()
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
     return dept
 
 
-def create_department(data: DepartmentCreate, db: Session) -> Department:
-    if db.query(Department).filter(Department.code == data.code).first():
+def create_department(data: DepartmentCreate, db: Session, workspace_id: str) -> Department:
+    if db.query(Department).filter(
+        Department.workspace_id == workspace_id,
+        (Department.code == data.code) | (Department.name == data.name),
+    ).first():
         raise HTTPException(status_code=409, detail="A department with this code already exists")
+    _validate_department_links(data.hod_id, data.parent_dept_id, workspace_id, db)
     dept = Department(
         id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
         name=data.name,
         code=data.code,
         hod_id=data.hod_id,
@@ -87,20 +103,39 @@ def create_department(data: DepartmentCreate, db: Session) -> Department:
     return dept
 
 
-def update_department(dept_id: str, data: DepartmentUpdate, db: Session) -> Department:
-    dept = get_department(dept_id, db)
-    for field, value in data.model_dump(exclude_unset=True).items():
+def update_department(dept_id: str, data: DepartmentUpdate, db: Session, workspace_id: str) -> Department:
+    dept = get_department(dept_id, db, workspace_id)
+    changes = data.model_dump(exclude_unset=True)
+    if "name" in changes or "code" in changes:
+        duplicate = db.query(Department).filter(
+            Department.workspace_id == workspace_id,
+            Department.id != dept_id,
+            ((Department.code == changes.get("code", dept.code)) |
+             (Department.name == changes.get("name", dept.name))),
+        ).first()
+        if duplicate:
+            raise HTTPException(status_code=409, detail="A department with this name or code already exists")
+    _validate_department_links(
+        changes.get("hod_id", dept.hod_id),
+        changes.get("parent_dept_id", dept.parent_dept_id),
+        workspace_id,
+        db,
+    )
+    for field, value in changes.items():
         setattr(dept, field, value)
     db.commit()
     db.refresh(dept)
     return dept
 
 
-def delete_department(dept_id: str, db: Session) -> None:
-    dept = get_department(dept_id, db)
+def delete_department(dept_id: str, db: Session, workspace_id: str) -> None:
+    dept = get_department(dept_id, db, workspace_id)
     employee_count = (
         db.query(func.count(Employee.id))
-        .filter(Employee.department_id == dept_id)
+        .filter(
+            Employee.department_id == dept_id,
+            Employee.workspace_id == workspace_id,
+        )
         .scalar()
     ) or 0
     if employee_count > 0:
@@ -112,22 +147,45 @@ def delete_department(dept_id: str, db: Session) -> None:
     db.commit()
 
 
+def _validate_department_links(
+    hod_id: str | None,
+    parent_dept_id: str | None,
+    workspace_id: str,
+    db: Session,
+) -> None:
+    """Prevent a department from referencing records in another workspace."""
+    if hod_id and not db.query(Employee.id).filter(
+        Employee.id == hod_id,
+        Employee.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Head of department is not in this workspace")
+    if parent_dept_id and not db.query(Department.id).filter(
+        Department.id == parent_dept_id,
+        Department.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Parent department is not in this workspace")
+
+
 # ── Groups ─────────────────────────────────────────────────────────────────────
 
-def _get_group_or_404(group_id: str, db: Session) -> Group:
-    g = db.query(Group).filter(Group.id == group_id).first()
+def _get_group_or_404(group_id: str, db: Session, workspace_id: str) -> Group:
+    g = db.query(Group).filter(
+        Group.id == group_id,
+        Group.workspace_id == workspace_id,
+    ).first()
     if not g:
         raise HTTPException(404, "Group not found")
     return g
 
 
-def list_groups(db: Session) -> list:
+def list_groups(db: Session, workspace_id: str) -> list:
     rows = (
         db.query(
             Group,
             func.count(GroupMember.id).label("member_count"),
         )
         .outerjoin(GroupMember, GroupMember.group_id == Group.id)
+        .filter(Group.workspace_id == workspace_id)
         .group_by(Group.id)
         .order_by(Group.name)
         .all()
@@ -146,9 +204,27 @@ def list_groups(db: Session) -> list:
     ]
 
 
-def create_group(data: GroupCreate, actor_employee_id: str, db: Session) -> Group:
+def create_group(
+    data: GroupCreate,
+    actor_employee_id: str,
+    db: Session,
+    workspace_id: str,
+) -> Group:
+    if db.query(Group.id).filter(
+        Group.workspace_id == workspace_id,
+        Group.name == data.name,
+    ).first():
+        raise HTTPException(status_code=409, detail="A group with this name already exists in this workspace")
+
+    if not db.query(Employee.id).filter(
+        Employee.id == actor_employee_id,
+        Employee.workspace_id == workspace_id,
+    ).first():
+        raise HTTPException(status_code=400, detail="Group creator is not in this workspace")
+
     g = Group(
         id=str(uuid.uuid4()),
+        workspace_id=workspace_id,
         name=data.name,
         description=data.description,
         group_type=data.group_type,
@@ -158,7 +234,7 @@ def create_group(data: GroupCreate, actor_employee_id: str, db: Session) -> Grou
     return g
 
 
-def get_group(group_id: str, db: Session) -> dict:
+def get_group(group_id: str, db: Session, workspace_id: str) -> dict:
     g = (
         db.query(Group)
         .options(
@@ -169,7 +245,10 @@ def get_group(group_id: str, db: Session) -> dict:
             .joinedload(GroupMember.employee)
             .joinedload(Employee.department_rel),
         )
-        .filter(Group.id == group_id)
+        .filter(
+            Group.id == group_id,
+            Group.workspace_id == workspace_id,
+        )
         .first()
     )
     if not g:
@@ -178,7 +257,7 @@ def get_group(group_id: str, db: Session) -> dict:
     members = []
     for m in g.members:
         emp = m.employee
-        if not emp:
+        if not emp or emp.workspace_id != workspace_id:
             continue
         name = (
             emp.user.full_name
@@ -205,8 +284,14 @@ def get_group(group_id: str, db: Session) -> dict:
     }
 
 
-def update_group(group_id: str, data: GroupUpdate, db: Session) -> Group:
-    g = _get_group_or_404(group_id, db)
+def update_group(group_id: str, data: GroupUpdate, db: Session, workspace_id: str) -> Group:
+    g = _get_group_or_404(group_id, db, workspace_id)
+    if data.name is not None and db.query(Group.id).filter(
+        Group.workspace_id == workspace_id,
+        Group.name == data.name,
+        Group.id != group_id,
+    ).first():
+        raise HTTPException(status_code=409, detail="A group with this name already exists in this workspace")
     if data.name        is not None: g.name        = data.name
     if data.description is not None: g.description = data.description
     if data.group_type  is not None: g.group_type  = data.group_type
@@ -214,15 +299,16 @@ def update_group(group_id: str, data: GroupUpdate, db: Session) -> Group:
     return g
 
 
-def add_group_member(group_id: str, data: AddMember, db: Session) -> dict:
-    _get_group_or_404(group_id, db)
+def add_group_member(group_id: str, data: AddMember, db: Session, workspace_id: str) -> dict:
+    _get_group_or_404(group_id, db, workspace_id)
 
     # Accept employee_id (UUID) or employee_no
     emp = (
         db.query(Employee)
         .filter(
             (Employee.id == data.employee_id)
-            | (Employee.employee_no == data.employee_id)
+            | (Employee.employee_no == data.employee_id),
+            Employee.workspace_id == workspace_id,
         )
         .options(joinedload(Employee.user), joinedload(Employee.department_rel))
         .first()
@@ -264,7 +350,8 @@ def add_group_member(group_id: str, data: AddMember, db: Session) -> dict:
     }
 
 
-def remove_group_member(group_id: str, member_id: str, db: Session) -> None:
+def remove_group_member(group_id: str, member_id: str, db: Session, workspace_id: str) -> None:
+    _get_group_or_404(group_id, db, workspace_id)
     member = (
         db.query(GroupMember)
         .filter(GroupMember.id == member_id, GroupMember.group_id == group_id)
