@@ -92,13 +92,9 @@ export interface CompanyBranding {
 }
 
 interface CompanyBrandingState extends CompanyBranding {
-  isConfigured: boolean;
   hasHydrated: boolean;
   hasResolvedWorkspace: boolean;
-  workspaceStatus: WorkspaceStatus;
-  canCompleteOnboarding: boolean;
   setBranding: (branding: CompanyBranding) => void;
-  setWorkspaceLifecycle: (status: WorkspaceStatus, canCompleteOnboarding: boolean) => void;
   setWorkspaceResolved: (resolved: boolean) => void;
   resetBranding: () => void;
 }
@@ -111,11 +107,8 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
       logoBackground: DEFAULT_LOGO_BACKGROUND,
       primaryColor: DEFAULT_PRIMARY_COLOR,
       secondaryColor: DEFAULT_SECONDARY_COLOR,
-      isConfigured: false,
       hasHydrated: false,
       hasResolvedWorkspace: false,
-      workspaceStatus: "unknown",
-      canCompleteOnboarding: false,
       setBranding: ({ name, logoDataUrl, logoBackground, primaryColor, secondaryColor }) =>
         set({
           name: name.trim(),
@@ -123,10 +116,7 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
           logoBackground: logoBackground === "dark" || logoBackground === "none" ? logoBackground : DEFAULT_LOGO_BACKGROUND,
           primaryColor: normalizeHexColor(primaryColor, DEFAULT_PRIMARY_COLOR),
           secondaryColor: normalizeHexColor(secondaryColor, DEFAULT_SECONDARY_COLOR),
-          isConfigured: true,
         }),
-      setWorkspaceLifecycle: (workspaceStatus, canCompleteOnboarding) =>
-        set({ workspaceStatus, canCompleteOnboarding }),
       setWorkspaceResolved: (hasResolvedWorkspace) => set({ hasResolvedWorkspace }),
       resetBranding: () =>
         set({
@@ -135,22 +125,18 @@ export const useCompanyBranding = create<CompanyBrandingState>()(
           logoBackground: DEFAULT_LOGO_BACKGROUND,
           primaryColor: DEFAULT_PRIMARY_COLOR,
           secondaryColor: DEFAULT_SECONDARY_COLOR,
-          isConfigured: false,
-          workspaceStatus: "unknown",
-          canCompleteOnboarding: false,
         }),
     }),
     {
       name: BRANDING_STORAGE_KEY,
       storage: createJSONStorage(() => window.localStorage),
       skipHydration: true,
-      partialize: ({ name, logoDataUrl, logoBackground, primaryColor, secondaryColor, isConfigured }) => ({
+      partialize: ({ name, logoDataUrl, logoBackground, primaryColor, secondaryColor }) => ({
         name,
         logoDataUrl,
         logoBackground,
         primaryColor,
         secondaryColor,
-        isConfigured,
       }),
       onRehydrateStorage: () => () => {
         useCompanyBranding.setState({ hasHydrated: true });
