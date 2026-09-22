@@ -125,6 +125,76 @@ export default function PayslipDocument({ slip }: { slip: PayslipPdfInput }) {
         />
       </div>
 
+      {/* How the PAYE figure was reached. Only shown when the payslip carries
+          its own working — older slips predate the calculator and have none,
+          and inventing it after the fact would be worse than omitting it. */}
+      {slip.taxable_income != null && (
+        <div className="pt-5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-brand-text-secondary">
+            How PAYE was calculated
+          </p>
+          <table className="w-full mt-2 text-xs">
+            <tbody>
+              <tr>
+                <td className="py-0.5 text-brand-text-secondary">Annual gross</td>
+                <td className="py-0.5 text-right tabular-nums">{money(slip.annual_gross ?? 0)}</td>
+              </tr>
+              <tr>
+                <td className="py-0.5 text-brand-text-secondary">Less pension</td>
+                <td className="py-0.5 text-right tabular-nums">({money(slip.annual_pension ?? 0)})</td>
+              </tr>
+              <tr>
+                <td className="py-0.5 text-brand-text-secondary">Less NHF</td>
+                <td className="py-0.5 text-right tabular-nums">({money(slip.annual_nhf ?? 0)})</td>
+              </tr>
+              <tr>
+                <td className="py-0.5 text-brand-text-secondary">Less consolidated relief</td>
+                <td className="py-0.5 text-right tabular-nums">
+                  ({money(slip.consolidated_relief ?? 0)})
+                </td>
+              </tr>
+              <tr className="border-t border-brand-border">
+                <td className="py-1 font-semibold text-brand-text-primary">Taxable income</td>
+                <td className="py-1 text-right tabular-nums font-semibold">
+                  {money(slip.taxable_income)}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          {slip.tax_bands && slip.tax_bands.length > 0 && (
+            <table className="w-full mt-2 text-xs">
+              <tbody>
+                {slip.tax_bands.map((b) => (
+                  <tr key={b.sequence}>
+                    <td className="py-0.5 text-brand-text-secondary">
+                      {money(b.amount_taxed)} @ {(b.rate * 100).toFixed(0)}%
+                    </td>
+                    <td className="py-0.5 text-right tabular-nums">{money(b.tax)}</td>
+                  </tr>
+                ))}
+                <tr className="border-t border-brand-border">
+                  <td className="py-1 font-semibold text-brand-text-primary">Annual tax</td>
+                  <td className="py-1 text-right tabular-nums font-semibold">
+                    {money(slip.annual_tax ?? 0)}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="py-0.5 text-brand-text-secondary">Monthly PAYE (÷ 12)</td>
+                  <td className="py-0.5 text-right tabular-nums">{money(slip.paye)}</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+
+          {slip.tax_config_name && (
+            <p className="text-[10px] text-brand-text-secondary mt-1.5">
+              Calculated under &ldquo;{slip.tax_config_name}&rdquo;.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Loan context — only when a structured loan was deducted */}
       {slip.loan_description && slip.loan > 0 && (
         <div className="pt-5">

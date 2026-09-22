@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, func
 from fastapi import HTTPException, status
 from typing import Optional, Tuple
 from datetime import datetime, date, timedelta
@@ -9,7 +9,9 @@ import uuid
 from app.hr.models import (
     LeaveTypeSetup, LeaveRequest, LeaveRequestStatus, LeaveBalance, Payslip, PayslipStatus,
     EmployeeLoan, LoanRepaymentCharge, LoanStatus, LoanMode,
+    TaxConfig, TaxBand,
 )
+from app.hr.tax import Earnings, compute_statutory_deductions
 from app.hr.schemas import (
     LeaveTypeCreate, LeaveTypeUpdate, LeaveRequestCreate, PayslipGenerate,
     LoanCreate, LoanUpdate,
@@ -976,6 +978,24 @@ def _period_yyyymm(period: str, year: int) -> str:
     return f"{year}{month:02d}"
 
 
+_MONTH_NAMES = [
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+]
+
+
+def _period_start(period: str, year: int) -> date:
+    """
+    First day of a payroll period, for resolving the tax rules that applied.
+
+    Periods are stored as free text ("September 2026"), so fall back to the
+    start of the year when the month cannot be read rather than failing a run.
+    """
+    first_word = (period or "").strip().split()[0].lower() if period else ""
+    month = _MONTH_NAMES.index(first_word) + 1 if first_word in _MONTH_NAMES else 1
+    return date(year, month, 1)
+
+
 def _next_payroll_ref(period: str, year: int) -> str:
     """Payroll run reference: PAY-YYYYMM-XXXXXX (one per generate run)."""
     return f"PAY-{_period_yyyymm(period, year)}-{uuid.uuid4().hex[:6].upper()}"
@@ -1113,14 +1133,35 @@ def generate_payslips(
             if ch.period == period and ch.year == year:
                 charge_this_period[ch.loan_id] = ch
 
+    # Statutory rules in force for the period being run — not today's rules, so
+    # regenerating an old period reproduces what it originally paid.
+    tax_config = resolve_tax_config(db, _period_start(period, year))
+
     for emp in employees:
         basic     = emp.basic_salary or zero
         housing   = emp.housing_allowance or zero
         transport = emp.transport_allowance or zero
         meal      = emp.meal_allowance or zero
-        paye      = emp.paye or zero
-        pension   = emp.pension or zero
-        nhf       = emp.nhf or zero
+
+        # Computed from the configured rules rather than copied off the employee
+        # row. The stored figures were only ever written when someone saved
+        # through the employee form, so any other write path left them at zero
+        # and payroll silently under-deducted.
+        computed = None
+        if tax_config is not None:
+            computed = compute_statutory_deductions(
+                Earnings(basic=basic, housing=housing, transport=transport, meal=meal),
+                tax_config,
+            )
+            paye    = computed.paye
+            pension = computed.pension
+            nhf     = computed.nhf
+        else:
+            # No configuration set up yet — fall back to whatever is on the
+            # employee so payroll still runs rather than zeroing everyone.
+            paye    = emp.paye or zero
+            pension = emp.pension or zero
+            nhf     = emp.nhf or zero
 
         is_new = emp.id not in existing_by_emp
         slip = existing_by_emp.get(emp.id) or Payslip(employee_id=emp.id, period=period, year=year)
@@ -1164,6 +1205,35 @@ def generate_payslips(
         slip.department = emp.department
         slip.basic, slip.housing, slip.transport, slip.meal = basic, housing, transport, meal
         slip.paye, slip.pension, slip.nhf, slip.loan = paye, pension, nhf, loan
+
+        # Snapshot how PAYE was reached. Cleared when there is no calculation
+        # behind the figure, so a slip never shows working that is not its own.
+        if computed is not None:
+            slip.tax_config_name = tax_config.name
+            slip.annual_gross = computed.annual_gross
+            slip.annual_pension = computed.annual_pension
+            slip.annual_nhf = computed.annual_nhf
+            slip.consolidated_relief = computed.consolidated_relief
+            slip.taxable_income = computed.taxable_income
+            slip.annual_tax = computed.annual_tax
+            slip.tax_bands = [
+                {
+                    "sequence": b.sequence,
+                    "rate": float(b.rate),
+                    "amount_taxed": float(b.amount_taxed),
+                    "tax": float(b.tax),
+                }
+                for b in computed.bands
+            ]
+        else:
+            slip.tax_config_name = None
+            slip.annual_gross = None
+            slip.annual_pension = None
+            slip.annual_nhf = None
+            slip.consolidated_relief = None
+            slip.taxable_income = None
+            slip.annual_tax = None
+            slip.tax_bands = None
         slip.net = net
         slip.payroll_status = PayslipStatus.processed
         slip.prepared_by = prepared_by
@@ -1449,3 +1519,254 @@ def get_payslip_by_id(db: Session, payslip_id: str) -> Payslip:
     if not slip:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Payslip '{payslip_id}' not found")
     return slip
+
+
+# ── Payroll cost by department ───────────────────────────────────────────────
+
+
+def get_payroll_periods_with_year(db: Session) -> list[dict]:
+    """Distinct payroll periods, newest first, for the period selector."""
+    rows = (
+        db.query(Payslip.period, Payslip.year, func.count(Payslip.id))
+        .group_by(Payslip.period, Payslip.year)
+        .all()
+    )
+    out = [
+        {"period": period, "year": int(year), "payslips": int(count)}
+        for period, year, count in rows
+    ]
+    # "September 2026" sorts wrong alphabetically, so order by the real month.
+    months = [
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december",
+    ]
+
+    def key(item: dict):
+        first = (item["period"] or "").strip().split()[0].lower()
+        month = months.index(first) + 1 if first in months else 0
+        return (item["year"], month)
+
+    return sorted(out, key=key, reverse=True)
+
+
+def get_payroll_cost_by_department(
+    db: Session,
+    period: Optional[str] = None,
+    year: Optional[int] = None,
+    all_periods: bool = False,
+) -> dict:
+    """
+    Payroll cost grouped by department, for one period or across all of them.
+
+    Groups on Payslip.department — the department captured when payroll ran —
+    not the employee's current department. A report run today therefore still
+    shows what it showed last month, even after someone transfers.
+
+    all_periods: aggregate every period instead of one. Defaults to the most
+    recent period when neither is given.
+    """
+    periods = get_payroll_periods_with_year(db)
+
+    # Every department that has ever appeared on a payslip, so the selector
+    # does not shrink to whatever the chosen period happens to contain.
+    all_departments = [
+        row[0]
+        for row in db.query(
+            func.coalesce(func.nullif(Payslip.department, ""), "Unassigned")
+        ).distinct().all()
+    ]
+    all_departments.sort()
+
+    if not periods:
+        return {"periods": [], "all_departments": [], "period": None, "year": None,
+                "all_periods": False, "departments": [], "totals": {}, "employees": []}
+
+    if all_periods:
+        period, year = None, None
+    elif period is None or year is None:
+        period, year = periods[0]["period"], periods[0]["year"]
+
+    period_filter = (
+        []
+        if all_periods
+        else [Payslip.period == period, Payslip.year == year]
+    )
+
+    money = lambda col: func.coalesce(func.sum(col), 0)  # noqa: E731
+    gross = Payslip.basic + Payslip.housing + Payslip.transport + Payslip.meal
+    deductions = Payslip.paye + Payslip.pension + Payslip.nhf + Payslip.loan
+
+    rows = (
+        db.query(
+            func.coalesce(func.nullif(Payslip.department, ""), "Unassigned").label("department"),
+            func.count(Payslip.id).label("staff"),
+            money(gross).label("gross"),
+            money(Payslip.basic).label("basic"),
+            money(Payslip.housing).label("housing"),
+            money(Payslip.transport).label("transport"),
+            money(Payslip.meal).label("meal"),
+            money(Payslip.paye).label("paye"),
+            money(Payslip.pension).label("pension"),
+            money(Payslip.nhf).label("nhf"),
+            money(Payslip.loan).label("loan"),
+            money(deductions).label("deductions"),
+            money(Payslip.net).label("net"),
+        )
+        .filter(*period_filter)
+        .group_by("department")
+        .all()
+    )
+
+    departments = [
+        {
+            "department": r.department,
+            "staff": int(r.staff),
+            "gross": float(r.gross),
+            "basic": float(r.basic),
+            "housing": float(r.housing),
+            "transport": float(r.transport),
+            "meal": float(r.meal),
+            "paye": float(r.paye),
+            "pension": float(r.pension),
+            "nhf": float(r.nhf),
+            "loan": float(r.loan),
+            "deductions": float(r.deductions),
+            "net": float(r.net),
+        }
+        for r in rows
+    ]
+    departments.sort(key=lambda d: d["net"], reverse=True)
+
+    total_net = sum(d["net"] for d in departments)
+    for d in departments:
+        d["share_of_net"] = round(d["net"] / total_net * 100, 1) if total_net else 0.0
+
+    totals = {
+        "staff": sum(d["staff"] for d in departments),
+        "gross": sum(d["gross"] for d in departments),
+        "deductions": sum(d["deductions"] for d in departments),
+        "paye": sum(d["paye"] for d in departments),
+        "pension": sum(d["pension"] for d in departments),
+        "nhf": sum(d["nhf"] for d in departments),
+        "loan": sum(d["loan"] for d in departments),
+        "net": total_net,
+        "departments": len(departments),
+    }
+
+    # The people behind each department's number, so a row can be opened up.
+    from app.shared.models.user import User
+
+    emp_rows = (
+        db.query(
+            func.coalesce(func.nullif(Payslip.department, ""), "Unassigned").label("department"),
+            Payslip.id,
+            Payslip.emp_code,
+            Payslip.basic, Payslip.housing, Payslip.transport, Payslip.meal,
+            Payslip.paye, Payslip.pension, Payslip.nhf, Payslip.loan, Payslip.net,
+            User.first_name, User.last_name,
+        )
+        .join(Employee, Employee.id == Payslip.employee_id)
+        .join(User, User.id == Employee.user_id)
+        .filter(*period_filter)
+        .all()
+    )
+    employees = [
+        {
+            "department": r.department,
+            "payslip_id": r.id,
+            "emp_code": r.emp_code,
+            "name": f"{r.first_name or ''} {r.last_name or ''}".strip() or r.emp_code,
+            "gross": float((r.basic or 0) + (r.housing or 0) + (r.transport or 0) + (r.meal or 0)),
+            "deductions": float((r.paye or 0) + (r.pension or 0) + (r.nhf or 0) + (r.loan or 0)),
+            "net": float(r.net or 0),
+        }
+        for r in emp_rows
+    ]
+    employees.sort(key=lambda e: e["net"], reverse=True)
+
+    return {
+        "periods": periods,
+        "all_departments": all_departments,
+        "period": period,
+        "year": year,
+        "all_periods": all_periods,
+        "departments": departments,
+        "totals": totals,
+        "employees": employees,
+    }
+
+
+# ─── Tax configuration ────────────────────────────────────────────────────────
+
+
+def _apply_bands(config: TaxConfig, bands: list) -> None:
+    """Replace a config's band table. Sequence is normalised to 1..n in order."""
+    config.bands.clear()
+    for i, band in enumerate(sorted(bands, key=lambda b: b.sequence), start=1):
+        config.bands.append(
+            TaxBand(sequence=i, width=band.width, rate=band.rate)
+        )
+
+
+def list_tax_configs(db: Session) -> list[TaxConfig]:
+    """Newest effective date first — the one payroll would pick is at the top."""
+    return (
+        db.query(TaxConfig)
+        .options(joinedload(TaxConfig.bands))
+        .order_by(TaxConfig.effective_from.desc())
+        .all()
+    )
+
+
+def get_tax_config(db: Session, config_id: str) -> TaxConfig:
+    config = (
+        db.query(TaxConfig)
+        .options(joinedload(TaxConfig.bands))
+        .filter(TaxConfig.id == config_id)
+        .first()
+    )
+    if not config:
+        raise HTTPException(status_code=404, detail="Tax configuration not found")
+    return config
+
+
+def create_tax_config(db: Session, payload) -> TaxConfig:
+    data = payload.model_dump(exclude={"bands"})
+    config = TaxConfig(**data)
+    _apply_bands(config, payload.bands or [])
+    db.add(config)
+    db.flush()
+    return config
+
+
+def update_tax_config(db: Session, config_id: str, payload) -> TaxConfig:
+    config = get_tax_config(db, config_id)
+    data = payload.model_dump(exclude_unset=True, exclude={"bands"})
+    for field, value in data.items():
+        setattr(config, field, value)
+    if payload.bands is not None:
+        _apply_bands(config, payload.bands)
+    db.flush()
+    return config
+
+
+def delete_tax_config(db: Session, config_id: str) -> None:
+    config = get_tax_config(db, config_id)
+    db.delete(config)
+    db.flush()
+
+
+def resolve_tax_config(db: Session, on_date: Optional[date] = None) -> Optional[TaxConfig]:
+    """
+    The active config in force on a date — the newest whose effective_from is on
+    or before it. Payroll resolves per period, so a historical run keeps using
+    the rules that applied then rather than whatever is current.
+    """
+    when = on_date or date.today()
+    return (
+        db.query(TaxConfig)
+        .options(joinedload(TaxConfig.bands))
+        .filter(TaxConfig.is_active.is_(True), TaxConfig.effective_from <= when)
+        .order_by(TaxConfig.effective_from.desc())
+        .first()
+    )

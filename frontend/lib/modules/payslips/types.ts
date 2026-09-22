@@ -1,3 +1,10 @@
+export interface TaxBandCharge {
+  sequence: number;
+  rate: number;
+  amount_taxed: number;
+  tax: number;
+}
+
 export interface PayslipItem {
   id: string;
   payroll_ref?: string;
@@ -18,6 +25,15 @@ export interface PayslipItem {
   loan_description?: string | null;
   loan_total?: number | null;
   loan_outstanding?: number | null;
+  /** How the PAYE figure was reached — null on payslips predating the calculator. */
+  tax_config_name?: string | null;
+  annual_gross?: number | null;
+  annual_pension?: number | null;
+  annual_nhf?: number | null;
+  consolidated_relief?: number | null;
+  taxable_income?: number | null;
+  annual_tax?: number | null;
+  tax_bands?: TaxBandCharge[] | null;
   net: number;
   payroll_status: string;
   prepared_by?: string;
@@ -43,6 +59,15 @@ export interface PayslipDisplay {
   loan_description?: string | null;
   loan_total?: number | null;
   loan_outstanding?: number | null;
+  /** How the PAYE figure was reached — null on payslips predating the calculator. */
+  tax_config_name?: string | null;
+  annual_gross?: number | null;
+  annual_pension?: number | null;
+  annual_nhf?: number | null;
+  consolidated_relief?: number | null;
+  taxable_income?: number | null;
+  annual_tax?: number | null;
+  tax_bands?: TaxBandCharge[] | null;
   net: number;
 }
 
