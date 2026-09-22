@@ -422,3 +422,39 @@ def cancel_invoice(
     result.settled_by_name = settlement["settled_by_name"]
     result.is_final_step = settlement["is_final_step"]
     return result
+
+
+# ── Finance dashboard ───────────────────────────────────────────────────────
+
+
+@router.get("/dashboard", response_model=dict)
+def finance_dashboard(
+    currency: Optional[str] = Query(None, description="Restrict every figure to one currency"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Finance overview: what is waiting on an approver, what is approved and
+    awaiting payment, what has been paid, and how long approved invoices have
+    been sitting unpaid.
+
+    Amounts are grouped per currency — the data carries NGN, EUR, GBP and USD,
+    so a single blended total would be meaningless. Pass ?currency= to drill
+    into one; the list of currencies in play is always returned unfiltered.
+    """
+    return service.get_finance_dashboard(db, currency=currency)
+
+
+@router.get("/paid-invoices", response_model=dict)
+def paid_invoices(
+    currency: Optional[str] = Query(None, description="Restrict to one currency"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(8, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Paginated feed of settled invoices for the finance dashboard — separate from
+    /dashboard so paging the list does not re-run the summary aggregates.
+    """
+    return service.get_paid_invoices(db, currency=currency, skip=skip, limit=limit)
