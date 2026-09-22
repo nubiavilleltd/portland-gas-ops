@@ -91,7 +91,15 @@ const COLUMNS: Column<MyRequest>[] = [
   {
     key: "status",
     label: "Status",
-    render: (v) => <ApprovalBadge status={String(v) === "in_progress" ? "pending" : String(v)} />,
+    render: (v, row) =>
+      // Invoices report their own status (in progress / approved / paid /
+      // cancelled), which is already the true state — don't flatten it to
+      // "Pending". Other request types keep the existing display.
+      row.request_type === "invoice" ? (
+        <ApprovalBadge status={String(v)} />
+      ) : (
+        <ApprovalBadge status={String(v) === "in_progress" ? "pending" : String(v)} />
+      ),
   },
   {
     key: "next_approver_name",

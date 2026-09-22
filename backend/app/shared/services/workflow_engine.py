@@ -24,8 +24,8 @@ import logging
 from datetime import datetime, date
 from typing import Callable
 
-from sqlalchemy import event as sa_event, func, tuple_
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import event as sa_event, func, tuple_, and_, case, cast, String
+from sqlalchemy.orm import Session, joinedload, aliased
 from fastapi import HTTPException
 
 from app.shared.models.approval import (
@@ -542,6 +542,7 @@ class WorkflowEngine:
         actor: Employee,
         comment: str | None = None,
         on_final_approval: Callable[[], None] | None = None,
+        completion_notification: tuple[str, str] | None = None,
     ) -> ApprovalRequest:
         """
         Actor approves the current step.
@@ -550,6 +551,10 @@ class WorkflowEngine:
           updates all_requests, notifies the requester, calls on_final_approval().
 
         on_final_approval: callback for the source module to update its own status field.
+        completion_notification: (title, message) overriding the requester's
+            "Request Approved" notification. Used where completing the final
+            step is not an approval in the ordinary sense — an invoice whose
+            last step marks it paid, for instance.
         """
         workspace_id = actor.workspace_id
         approval_req = self._get_approval_request(approval_request_id, workspace_id)
@@ -689,13 +694,17 @@ class WorkflowEngine:
                 )
                 .first()
             )
+            completion_title, completion_message = completion_notification or (
+                "Request Approved",
+                f"Your {approval_req.request_type} request has been fully approved.",
+            )
             if requester_emp:
                 notification_service.create_notification(
                     db=self.db,
                     recipient_id=requester_emp.id,
                     type=NotificationType.approved,
-                    title="Request Approved",
-                    message=f"Your {approval_req.request_type} request has been fully approved.",
+                    title=completion_title,
+                    message=completion_message,
                     reference_type=approval_req.request_type,
                     reference_id=approval_req.request_id,
                     workspace_id=workspace_id,
@@ -723,11 +732,16 @@ class WorkflowEngine:
         actor: Employee,
         comment: str | None = None,
         on_rejected: Callable[[], None] | None = None,
+        rejection_notification: tuple[str, str] | None = None,
     ) -> ApprovalRequest:
         """
         Reject the request — terminal state; requester cannot resubmit.
         Notifies the requester. Calls on_rejected() so the source module
         can update its own status field.
+
+        rejection_notification: (title, message) overriding the requester's
+            "Request Rejected" notification, for callers where ending the
+            request is not a rejection — an invoice being cancelled, say.
         """
         workspace_id = actor.workspace_id
         approval_req = self._get_approval_request(approval_request_id, workspace_id)
@@ -777,16 +791,18 @@ class WorkflowEngine:
             )
             .first()
         )
+        rejection_title, rejection_message = rejection_notification or (
+            "Request Rejected",
+            f"Your {approval_req.request_type} request has been rejected."
+            + (f" Reason: {comment}" if comment else ""),
+        )
         if requester_emp:
             notification_service.create_notification(
                 db=self.db,
                 recipient_id=requester_emp.id,
                 type=NotificationType.rejected,
-                title="Request Rejected",
-                message=(
-                    f"Your {approval_req.request_type} request has been rejected."
-                    + (f" Reason: {comment}" if comment else "")
-                ),
+                title=rejection_title,
+                message=rejection_message,
                 reference_type=approval_req.request_type,
                 reference_id=approval_req.request_id,
                 workspace_id=workspace_id,
@@ -986,6 +1002,32 @@ class WorkflowEngine:
             })
         return result
 
+    def _invoice_status_map(self, request_ids) -> dict[str, str]:
+        """
+        Invoice id -> its own status, for the request ids given.
+
+        Invoices settle at their LAST step rather than approving there, so the
+        workflow stays pending once every approval is done and all_requests
+        still reads "pending". The invoice's own status column is the truthful
+        current state (approved -> awaiting payment, then paid/cancelled), so
+        the request lists prefer it for invoice rows. One batched query, and
+        only when there are invoice rows to resolve.
+        """
+        ids = set(request_ids)
+        if not ids:
+            return {}
+        from app.finance.models import InvoiceProcessing
+
+        return {
+            row_id: status.value
+            for row_id, status in (
+                self.db.query(InvoiceProcessing.id, InvoiceProcessing.status)
+                .filter(InvoiceProcessing.id.in_(ids))
+                .all()
+            )
+            if status is not None
+        }
+
     def my_requests(self, employee_id: str, workspace_id: str) -> list[dict]:
         """
         Returns all all_requests rows raised by this employee, newest first.
@@ -1004,6 +1046,9 @@ class WorkflowEngine:
             )
             .order_by(AllRequest.created_at.desc())
             .all()
+        )
+        invoice_statuses = self._invoice_status_map(
+            r.request_id for r in rows if r.request_type == "invoice"
         )
         result = []
         for row in rows:
@@ -1038,7 +1083,11 @@ class WorkflowEngine:
                 "request_type":        row.request_type,
                 "request_id":          row.request_id,
                 "title":               row.title,
-                "status":              row.status.value,
+                "status":              (
+                    invoice_statuses.get(row.request_id, row.status.value)
+                    if row.request_type == "invoice"
+                    else row.status.value
+                ),
                 "department":          row.department,
                 "approval_request_id": row.approval_request_id,
                 "next_approver_name":  next_approver_name,
@@ -1084,9 +1133,16 @@ class WorkflowEngine:
             )
             all_req_map = {(r.request_type, r.request_id): r for r in all_reqs}
 
+        invoice_statuses = self._invoice_status_map(
+            r.request_id for r in audit_rows if r.request_type == "invoice"
+        )
+
         result = []
         for row in audit_rows:
             all_req = all_req_map.get((row.request_type, row.request_id))
+            current_status = all_req.status.value if all_req else None
+            if row.request_type == "invoice":
+                current_status = invoice_statuses.get(row.request_id, current_status)
             result.append({
                 "audit_id":       row.id,
                 "request_type":   row.request_type,
@@ -1094,7 +1150,7 @@ class WorkflowEngine:
                 "reference":      all_req.reference if all_req else None,
                 "title":          all_req.title if all_req else None,
                 "department":     all_req.department if all_req else None,
-                "current_status": all_req.status.value if all_req else None,
+                "current_status": current_status,
                 "my_action":      row.action.value,
                 "my_comment":     row.comment,
                 "acted_at":       utc_isoformat(row.acted_at),
@@ -1110,15 +1166,37 @@ class WorkflowEngine:
         status: str | None = None,
     ) -> list[dict]:
         """Admin view: all requests across all modules."""
-        q = self.db.query(AllRequest).filter(AllRequest.workspace_id == workspace_id)
+        from app.finance.models import InvoiceProcessing
+
+        # Invoices settle at their LAST step, so all_requests stays "pending"
+        # once every approval is done. Resolve the effective status in SQL —
+        # not after the fact — so the status filter and pagination agree with
+        # what is displayed. Non-invoice rows keep all_requests.status exactly.
+        inv = aliased(InvoiceProcessing)
+        effective_status = case(
+            (
+                and_(AllRequest.request_type == "invoice", inv.status.isnot(None)),
+                cast(inv.status, String),
+            ),
+            else_=cast(AllRequest.status, String),
+        )
+
+        q = (
+            self.db.query(AllRequest, effective_status.label("effective_status"))
+            .outerjoin(
+                inv,
+                and_(AllRequest.request_type == "invoice", AllRequest.request_id == inv.id),
+            )
+            .filter(AllRequest.workspace_id == workspace_id)
+        )
         if request_type:
             q = q.filter(AllRequest.request_type == request_type)
         if status:
-            q = q.filter(AllRequest.status == status)
+            q = q.filter(effective_status == status)
         rows = q.order_by(AllRequest.created_at.desc()).offset(skip).limit(limit).all()
 
         result = []
-        for row in rows:
+        for row, effective in rows:
             raiser = row.raiser
             result.append({
                 "id":                  row.id,
@@ -1126,7 +1204,7 @@ class WorkflowEngine:
                 "request_type":        row.request_type,
                 "request_id":          row.request_id,
                 "title":               row.title,
-                "status":              row.status.value,
+                "status":              effective or row.status.value,
                 "department":          row.department,
                 "raised_by_name":      raiser.user.full_name if raiser and raiser.user else None,
                 "raised_by_no":        raiser.employee_no if raiser else None,
