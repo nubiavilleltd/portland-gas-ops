@@ -25,6 +25,15 @@ export function adaptPayslip(item: PayslipItem): PayslipDisplay {
     loan_description: item.loan_description ?? null,
     loan_total: item.loan_total != null ? Number(item.loan_total) : null,
     loan_outstanding: item.loan_outstanding != null ? Number(item.loan_outstanding) : null,
+    tax_config_name: item.tax_config_name ?? null,
+    annual_gross: item.annual_gross != null ? Number(item.annual_gross) : null,
+    annual_pension: item.annual_pension != null ? Number(item.annual_pension) : null,
+    annual_nhf: item.annual_nhf != null ? Number(item.annual_nhf) : null,
+    consolidated_relief:
+      item.consolidated_relief != null ? Number(item.consolidated_relief) : null,
+    taxable_income: item.taxable_income != null ? Number(item.taxable_income) : null,
+    annual_tax: item.annual_tax != null ? Number(item.annual_tax) : null,
+    tax_bands: item.tax_bands ?? null,
     net: Number(item.net),
   };
 }

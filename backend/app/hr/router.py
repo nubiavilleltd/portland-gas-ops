@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, status, Query, UploadFile, File, HTTPException, Body
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
+from decimal import Decimal
 
 from app.core.database import get_db
 from app.shared.dependencies import get_current_user, require_roles
@@ -11,7 +12,8 @@ from app.shared.models.user import User
 from app.shared.models.document import Document
 from app.shared.services.cloudinary_service import upload_file
 from app.hr.models import LeaveRequest
-from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveMarkReturned, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead, LoanCreate, LoanUpdate, LoanRead, LoanChargeRead
+from app.hr.schemas import LeaveTypeCreate, LeaveTypeUpdate, LeaveTypeRead, LeaveRequestCreate, LeaveRequestSubmit, LeaveMarkReturned, LeaveRequestRead, LeaveBalanceRead, EmployeeLeaveBalancesRead, PayslipGenerate, PayslipRead, LoanCreate, LoanUpdate, LoanRead, LoanChargeRead, TaxConfigCreate, TaxConfigUpdate, TaxConfigRead
+from app.hr.tax import Earnings, compute_statutory_deductions
 from app.hr import service
 from app.employees.models import Employee
 from app.employees.service import get_employee_by_user_id
@@ -720,6 +722,27 @@ def list_payslips(
     }
 
 
+@router.get("/payroll/by-department", response_model=dict)
+def payroll_cost_by_department(
+    period: Optional[str] = Query(None, description="e.g. 'September 2026'"),
+    year: Optional[int] = Query(None),
+    all_periods: bool = Query(False, description="Aggregate every period instead of one"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Payroll cost grouped by department for one period, with the employees
+    behind each department's figure.
+
+    Groups on the department captured when payroll ran, not the employee's
+    current one, so a historical period keeps reporting the same numbers after
+    someone transfers. Defaults to the most recent period.
+    """
+    return service.get_payroll_cost_by_department(
+        db, period=period, year=year, all_periods=all_periods
+    )
+
+
 @router.get("/payslips/{payslip_id}", response_model=PayslipRead)
 def get_payslip(
     payslip_id: str,
@@ -948,3 +971,122 @@ def return_leave_request(
             db, ctx["leave_request_id"], "returned", actor_name, body.comment
         )
     return result
+
+
+# ─── Tax configuration ────────────────────────────────────────────────────────
+#
+# The statutory rules payroll applies. Versioned by effective date so changing
+# next year's rates never rewrites last year's payslips.
+
+
+@router.get("/tax-configs", response_model=list[TaxConfigRead])
+def list_tax_configurations(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """All tax configurations, newest effective date first."""
+    return service.list_tax_configs(db)
+
+
+@router.get("/tax-configs/effective", response_model=Optional[TaxConfigRead])
+def effective_tax_configuration(
+    on_date: Optional[date] = Query(None, description="Defaults to today"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """The configuration payroll would apply on a given date, or null if none."""
+    return service.resolve_tax_config(db, on_date)
+
+
+@router.get("/tax-configs/{config_id}", response_model=TaxConfigRead)
+def get_tax_configuration(
+    config_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return service.get_tax_config(db, config_id)
+
+
+@router.post("/tax-configs", response_model=TaxConfigRead, status_code=201)
+def create_tax_configuration(
+    payload: TaxConfigCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    config = service.create_tax_config(db, payload)
+    db.commit()
+    db.refresh(config)
+    return config
+
+
+@router.patch("/tax-configs/{config_id}", response_model=TaxConfigRead)
+def update_tax_configuration(
+    config_id: str,
+    payload: TaxConfigUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    config = service.update_tax_config(db, config_id, payload)
+    db.commit()
+    db.refresh(config)
+    return config
+
+
+@router.delete("/tax-configs/{config_id}", status_code=204)
+def delete_tax_configuration(
+    config_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    service.delete_tax_config(db, config_id)
+    db.commit()
+
+
+@router.post("/tax-configs/preview", response_model=dict)
+def preview_statutory_deductions(
+    basic: Decimal = Body(Decimal("0")),
+    housing: Decimal = Body(Decimal("0")),
+    transport: Decimal = Body(Decimal("0")),
+    meal: Decimal = Body(Decimal("0")),
+    on_date: Optional[date] = Body(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    What the configured rules produce for a set of monthly earnings.
+
+    Backs the read-only preview on the employee form, so the rates are applied
+    in exactly one place rather than being reimplemented in the browser.
+    """
+    config = service.resolve_tax_config(db, on_date)
+    if config is None:
+        return {
+            "configured": False,
+            "detail": "No tax configuration is in force. Set one up under Setups.",
+            "paye": 0, "pension": 0, "nhf": 0,
+        }
+
+    result = compute_statutory_deductions(
+        Earnings(basic=basic, housing=housing, transport=transport, meal=meal),
+        config,
+    )
+    return {
+        "configured": True,
+        "config_name": config.name,
+        "paye": float(result.paye),
+        "pension": float(result.pension),
+        "nhf": float(result.nhf),
+        "annual_gross": float(result.annual_gross),
+        "consolidated_relief": float(result.consolidated_relief),
+        "taxable_income": float(result.taxable_income),
+        "annual_tax": float(result.annual_tax),
+        "bands": [
+            {
+                "sequence": b.sequence,
+                "rate": float(b.rate),
+                "amount_taxed": float(b.amount_taxed),
+                "tax": float(b.tax),
+            }
+            for b in result.bands
+        ],
+    }

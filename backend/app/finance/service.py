@@ -696,3 +696,308 @@ def invoice_is_at_final_step(db: Session, invoice_id: str) -> bool:
         return False
     final_step = get_final_step_number(db, approval_req.workflow_id)
     return final_step is not None and approval_req.current_step_number == final_step
+
+
+# ── Finance dashboard ────────────────────────────────────────────────────────
+#
+# One aggregate view over invoice processing and cash requisitions: what is
+# waiting on an approver, what is approved and awaiting payment, and what has
+# actually been paid.
+#
+# Amounts are reported PER CURRENCY, never blended. The data carries NGN, EUR,
+# GBP and USD side by side, so a single summed figure would be meaningless.
+#
+# Scoped through all_requests, which carries workspace_id — invoice_processing
+# and cash_requisitions do not have it yet. Every invoice has a registry row, so
+# the join drops nothing that has entered a workflow (drafts are excluded, which
+# is correct for a dashboard about approvals and payments).
+
+
+_AWAITING_APPROVAL = ("pending", "in_progress")
+
+
+def _money_rows(rows) -> list[dict]:
+    """[(currency, count, total)] -> serialisable per-currency buckets."""
+    return [
+        {"currency": cur or "NGN", "count": int(n or 0), "amount": float(total or 0)}
+        for cur, n, total in rows
+    ]
+
+
+def get_finance_dashboard(
+    db: Session,
+    workspace_id: Optional[str] = None,
+    currency: Optional[str] = None,
+) -> dict:
+    """
+    currency: restrict every figure to one currency. The list of currencies in
+    play is always returned unfiltered, so the selector never collapses to the
+    one already chosen.
+    """
+    from sqlalchemy import func as sa_func
+    from app.shared.models.approval import AllRequest, ApprovalRequest, ApprovalHistory
+    from app.shared.models.user import User
+
+    def scoped(model, request_type: str):
+        q = db.query(model).join(
+            AllRequest,
+            and_(
+                AllRequest.request_type == request_type,
+                AllRequest.request_id == model.id,
+            ),
+        )
+        if workspace_id:
+            q = q.filter(AllRequest.workspace_id == workspace_id)
+        return q
+
+    def by_status_currency(model, request_type: str, statuses):
+        return (
+            scoped(model, request_type)
+            .with_entities(
+                model.status,
+                model.currency,
+                sa_func.count(model.id),
+                sa_func.coalesce(sa_func.sum(model.amount), 0),
+            )
+            .filter(model.status.in_(statuses))
+            .group_by(model.status, model.currency)
+            .all()
+        )
+
+    # ── 1-2. Invoice and cash-requisition aggregates ────────────────────────
+    inv_rows = by_status_currency(
+        InvoiceProcessing,
+        "invoice",
+        list(_AWAITING_APPROVAL) + ["approved", "paid", "cancelled", "denied", "returned"],
+    )
+    cash_rows = by_status_currency(
+        CashRequisition,
+        "cash_requisition",
+        list(_AWAITING_APPROVAL) + ["approved", "denied", "returned"],
+    )
+
+    def collapse(rows, wanted: tuple[str, ...]) -> list[dict]:
+        acc: dict[str, list] = {}
+        for status, row_currency, count, total in rows:
+            value = status.value if hasattr(status, "value") else str(status)
+            if value not in wanted:
+                continue
+            cur = row_currency or "NGN"
+            if currency and cur != currency:
+                continue
+            bucket = acc.setdefault(cur, [cur, 0, 0.0])
+            bucket[1] += int(count or 0)
+            bucket[2] += float(total or 0)
+        return _money_rows([(c, n, t) for c, n, t in acc.values()])
+
+    # ── 3. Recently paid, with who settled it ───────────────────────────────
+    # (first page only — see get_paid_invoices for the paginated feed)
+    recent_q = (
+        scoped(InvoiceProcessing, "invoice")
+        .with_entities(
+            InvoiceProcessing.reference,
+            InvoiceProcessing.title,
+            InvoiceProcessing.vendor,
+            InvoiceProcessing.amount,
+            InvoiceProcessing.currency,
+            InvoiceProcessing.paid_at,
+            InvoiceProcessing.payment_reference,
+            User.first_name,
+            User.last_name,
+            InvoiceProcessing.id,
+        )
+        .outerjoin(Employee, Employee.id == InvoiceProcessing.paid_by)
+        .outerjoin(User, User.id == Employee.user_id)
+        .filter(InvoiceProcessing.status == InvoiceProcessingStatus.paid)
+    )
+    if currency:
+        # Filtered in SQL, not after the fact — otherwise the limit would slice
+        # the newest 8 overall and then discard most of them.
+        recent_q = recent_q.filter(InvoiceProcessing.currency == currency)
+    recent_q = recent_q.order_by(InvoiceProcessing.paid_at.desc()).limit(8).all()
+    recently_paid = [
+        {
+            "reference": r[0],
+            "title": r[1],
+            "vendor": r[2],
+            "amount": float(r[3] or 0),
+            "currency": r[4] or "NGN",
+            "paid_at": r[5].isoformat() if r[5] else None,
+            "payment_reference": r[6],
+            "paid_by_name": (f"{r[7] or ''} {r[8] or ''}".strip() or None),
+            "id": r[9],
+        }
+        for r in recent_q
+    ]
+
+    # ── 4. Ageing of approved-but-unpaid invoices ───────────────────────────
+    # "Approved at" is the last recorded approval on the live workflow attempt,
+    # not updated_at, which any later edit would move.
+    approved_at_sub = (
+        db.query(
+            ApprovalRequest.request_id.label("rid"),
+            sa_func.max(ApprovalHistory.acted_at).label("approved_at"),
+        )
+        .join(ApprovalHistory, ApprovalHistory.approval_request_id == ApprovalRequest.id)
+        .filter(
+            ApprovalRequest.request_type == "invoice",
+            ApprovalHistory.action == "approved",
+        )
+        .group_by(ApprovalRequest.request_id)
+        .subquery()
+    )
+    ageing_rows = (
+        scoped(InvoiceProcessing, "invoice")
+        .with_entities(
+            InvoiceProcessing.currency,
+            InvoiceProcessing.amount,
+            approved_at_sub.c.approved_at,
+            InvoiceProcessing.id,
+            InvoiceProcessing.reference,
+            InvoiceProcessing.title,
+            InvoiceProcessing.vendor,
+            InvoiceProcessing.invoice_number,
+        )
+        .outerjoin(approved_at_sub, approved_at_sub.c.rid == InvoiceProcessing.id)
+        .filter(InvoiceProcessing.status == InvoiceProcessingStatus.approved)
+        .all()
+    )
+
+    now = datetime.now(timezone.utc)
+    buckets = [("0-7 days", 0, 7), ("8-30 days", 8, 30), ("Over 30 days", 31, 10**6)]
+    ageing: list[dict] = []
+    for label, lo, hi in buckets:
+        acc: dict[str, list] = {}
+        members: list[dict] = []
+        for row in ageing_rows:
+            row_currency, amount, approved_at = row[0], row[1], row[2]
+            cur = row_currency or "NGN"
+            if currency and cur != currency:
+                continue
+            if approved_at is None:
+                days = 0
+            else:
+                ref = approved_at if approved_at.tzinfo else approved_at.replace(tzinfo=timezone.utc)
+                days = (now - ref).days
+            if lo <= days <= hi:
+                bucket = acc.setdefault(cur, [cur, 0, 0.0])
+                bucket[1] += 1
+                bucket[2] += float(amount or 0)
+                # The invoices behind the number, so the bucket can be opened
+                # up rather than leaving the reader to go hunting for them.
+                members.append({
+                    "id": row[3],
+                    "reference": row[4],
+                    "title": row[5],
+                    "vendor": row[6],
+                    "invoice_number": row[7],
+                    "amount": float(amount or 0),
+                    "currency": cur,
+                    "approved_at": approved_at.isoformat() if approved_at else None,
+                    "days_waiting": days,
+                })
+        members.sort(key=lambda m: m["days_waiting"], reverse=True)
+        ageing.append({
+            "bucket": label,
+            "count": sum(b[1] for b in acc.values()),
+            "by_currency": _money_rows([(c, n, t) for c, n, t in acc.values()]),
+            "invoices": members,
+        })
+
+    def summarise(rows, wanted):
+        per_currency = collapse(rows, wanted)
+        return {
+            "count": sum(b["count"] for b in per_currency),
+            "by_currency": per_currency,
+        }
+
+    currencies = sorted(
+        {(c or "NGN") for _, c, _, _ in inv_rows} | {(c or "NGN") for _, c, _, _ in cash_rows}
+    )
+
+    return {
+        "currencies": currencies,
+        "currency": currency,
+        "awaiting_approval": {
+            "invoices": summarise(inv_rows, _AWAITING_APPROVAL),
+            "cash_requisitions": summarise(cash_rows, _AWAITING_APPROVAL),
+        },
+        "awaiting_payment": summarise(inv_rows, ("approved",)),
+        "paid": summarise(inv_rows, ("paid",)),
+        "cancelled": summarise(inv_rows, ("cancelled",)),
+        "recently_paid": recently_paid,
+        "ageing": ageing,
+    }
+
+
+def get_paid_invoices(
+    db: Session,
+    workspace_id: Optional[str] = None,
+    currency: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 8,
+) -> dict:
+    """
+    Paginated feed of settled invoices — what was paid, by whom, and when.
+
+    Its own endpoint rather than part of the dashboard payload: paging through
+    the list should not re-run the aggregate queries behind the summary cards.
+    """
+    from app.shared.models.approval import AllRequest
+    from app.shared.models.user import User
+
+    base = db.query(InvoiceProcessing).join(
+        AllRequest,
+        and_(
+            AllRequest.request_type == "invoice",
+            AllRequest.request_id == InvoiceProcessing.id,
+        ),
+    ).filter(InvoiceProcessing.status == InvoiceProcessingStatus.paid)
+
+    if workspace_id:
+        base = base.filter(AllRequest.workspace_id == workspace_id)
+    if currency:
+        base = base.filter(InvoiceProcessing.currency == currency)
+
+    total = base.count()
+
+    rows = (
+        base.with_entities(
+            InvoiceProcessing.reference,
+            InvoiceProcessing.title,
+            InvoiceProcessing.vendor,
+            InvoiceProcessing.amount,
+            InvoiceProcessing.currency,
+            InvoiceProcessing.paid_at,
+            InvoiceProcessing.payment_reference,
+            User.first_name,
+            User.last_name,
+            InvoiceProcessing.id,
+        )
+        .outerjoin(Employee, Employee.id == InvoiceProcessing.paid_by)
+        .outerjoin(User, User.id == Employee.user_id)
+        .order_by(InvoiceProcessing.paid_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+    return {
+        "data": [
+            {
+                "reference": r[0],
+                "title": r[1],
+                "vendor": r[2],
+                "amount": float(r[3] or 0),
+                "currency": r[4] or "NGN",
+                "paid_at": r[5].isoformat() if r[5] else None,
+                "payment_reference": r[6],
+                "paid_by_name": (f"{r[7] or ''} {r[8] or ''}".strip() or None),
+            "id": r[9],
+            }
+            for r in rows
+        ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }

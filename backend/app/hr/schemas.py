@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from typing import Optional, List
 from datetime import datetime, date
+from decimal import Decimal
 
 
 class DocumentInfo(BaseModel):
@@ -174,6 +175,17 @@ class PayslipRead(BaseModel):
     loan_total: Optional[float] = None
     loan_outstanding: Optional[float] = None
     net: float
+
+    # The working behind the PAYE figure (null on older payslips)
+    tax_config_name: Optional[str] = None
+    annual_gross: Optional[float] = None
+    annual_pension: Optional[float] = None
+    annual_nhf: Optional[float] = None
+    consolidated_relief: Optional[float] = None
+    taxable_income: Optional[float] = None
+    annual_tax: Optional[float] = None
+    tax_bands: Optional[list] = None
+
     payroll_status: str
     prepared_by: Optional[str] = None
     created_at: datetime
@@ -259,3 +271,91 @@ class LoanChargeRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# ─── Tax configuration ────────────────────────────────────────────────────────
+
+
+class TaxBandIn(BaseModel):
+    sequence: int
+    # Band width — "the next 300,000". None means the remainder (top band).
+    width: Optional[Decimal] = None
+    rate: Decimal
+
+    @field_validator("rate")
+    @classmethod
+    def rate_is_a_fraction(cls, v: Decimal) -> Decimal:
+        if v < 0 or v > 1:
+            raise ValueError("rate must be a fraction between 0 and 1 (0.07 for 7%)")
+        return v
+
+
+class TaxBandRead(TaxBandIn):
+    id: str
+    model_config = {"from_attributes": True}
+
+
+class TaxConfigBase(BaseModel):
+    name: str
+    effective_from: date
+    is_active: bool = True
+    notes: Optional[str] = None
+
+    pension_rate: Decimal = Decimal("0.08")
+    pension_includes_basic: bool = True
+    pension_includes_housing: bool = True
+    pension_includes_transport: bool = True
+    pension_includes_meal: bool = False
+
+    nhf_rate: Decimal = Decimal("0.025")
+    nhf_includes_basic: bool = True
+    nhf_includes_housing: bool = False
+    nhf_includes_transport: bool = False
+    nhf_includes_meal: bool = False
+
+    cra_minimum: Decimal = Decimal("200000")
+    cra_gross_percent: Decimal = Decimal("0.01")
+    cra_additional_percent: Decimal = Decimal("0.20")
+
+    @field_validator("pension_rate", "nhf_rate", "cra_gross_percent", "cra_additional_percent")
+    @classmethod
+    def fraction(cls, v: Decimal) -> Decimal:
+        if v < 0 or v > 1:
+            raise ValueError("must be a fraction between 0 and 1 (0.08 for 8%)")
+        return v
+
+
+class TaxConfigCreate(TaxConfigBase):
+    bands: list[TaxBandIn] = []
+
+
+class TaxConfigUpdate(BaseModel):
+    name: Optional[str] = None
+    effective_from: Optional[date] = None
+    is_active: Optional[bool] = None
+    notes: Optional[str] = None
+
+    pension_rate: Optional[Decimal] = None
+    pension_includes_basic: Optional[bool] = None
+    pension_includes_housing: Optional[bool] = None
+    pension_includes_transport: Optional[bool] = None
+    pension_includes_meal: Optional[bool] = None
+
+    nhf_rate: Optional[Decimal] = None
+    nhf_includes_basic: Optional[bool] = None
+    nhf_includes_housing: Optional[bool] = None
+    nhf_includes_transport: Optional[bool] = None
+    nhf_includes_meal: Optional[bool] = None
+
+    cra_minimum: Optional[Decimal] = None
+    cra_gross_percent: Optional[Decimal] = None
+    cra_additional_percent: Optional[Decimal] = None
+
+    # Replaces the whole band table when supplied.
+    bands: Optional[list[TaxBandIn]] = None
+
+
+class TaxConfigRead(TaxConfigBase):
+    id: str
+    bands: list[TaxBandRead] = []
+    model_config = {"from_attributes": True}

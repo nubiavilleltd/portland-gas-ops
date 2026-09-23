@@ -1,11 +1,12 @@
 from sqlalchemy import (
     Column, String, Date, DateTime, Integer, Numeric, Enum as SAEnum,
-    ForeignKey, Text, Boolean, UniqueConstraint
+    ForeignKey, Text, Boolean, UniqueConstraint, JSON
 )
 from sqlalchemy.dialects.mysql import CHAR
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from typing import Optional
+from decimal import Decimal
 import uuid
 import enum
 
@@ -246,6 +247,18 @@ class Payslip(Base):
     # Calculated
     net = Column(Numeric(15, 2), nullable=False)
 
+    # How the PAYE figure was reached, snapshotted at generation time so the
+    # slip can justify itself later even if the rules change. NULL on payslips
+    # produced before the calculator existed.
+    tax_config_name = Column(String(120), nullable=True)
+    annual_gross = Column(Numeric(15, 2), nullable=True)
+    annual_pension = Column(Numeric(15, 2), nullable=True)
+    annual_nhf = Column(Numeric(15, 2), nullable=True)
+    consolidated_relief = Column(Numeric(15, 2), nullable=True)
+    taxable_income = Column(Numeric(15, 2), nullable=True)
+    annual_tax = Column(Numeric(15, 2), nullable=True)
+    tax_bands = Column(JSON, nullable=True)
+
     # Status
     payroll_status = Column(SAEnum(PayslipStatus), default=PayslipStatus.draft)
     prepared_by = Column(String(255), nullable=True)
@@ -333,3 +346,71 @@ class LoanRepaymentCharge(Base):
     __table_args__ = (
         UniqueConstraint("loan_id", "period", "year", name="uq_loan_charge_period"),
     )
+
+
+# ─── Tax configuration ────────────────────────────────────────────────────────
+#
+# Statutory deduction rules as data rather than code. Versioned by
+# effective_from so payroll resolves the rules that applied to the period being
+# run, and historical payslips stay reproducible after rates change.
+
+
+class TaxConfig(Base):
+    """One set of PAYE / pension / NHF rules, effective from a given date."""
+
+    __tablename__ = "tax_configs"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(120), nullable=False)
+    effective_from = Column(Date, nullable=False, index=True)  # inclusive
+    is_active = Column(Boolean, nullable=False, default=True)
+    notes = Column(Text, nullable=True)
+
+    # Employee pension contribution
+    pension_rate = Column(Numeric(7, 4), nullable=False, default=Decimal("0.08"))
+    pension_includes_basic = Column(Boolean, nullable=False, default=True)
+    pension_includes_housing = Column(Boolean, nullable=False, default=True)
+    pension_includes_transport = Column(Boolean, nullable=False, default=True)
+    pension_includes_meal = Column(Boolean, nullable=False, default=False)
+
+    # National Housing Fund
+    nhf_rate = Column(Numeric(7, 4), nullable=False, default=Decimal("0.025"))
+    nhf_includes_basic = Column(Boolean, nullable=False, default=True)
+    nhf_includes_housing = Column(Boolean, nullable=False, default=False)
+    nhf_includes_transport = Column(Boolean, nullable=False, default=False)
+    nhf_includes_meal = Column(Boolean, nullable=False, default=False)
+
+    # Consolidated relief allowance:
+    #   max(cra_minimum, gross * cra_gross_percent) + gross * cra_additional_percent
+    cra_minimum = Column(Numeric(15, 2), nullable=False, default=Decimal("200000"))
+    cra_gross_percent = Column(Numeric(7, 4), nullable=False, default=Decimal("0.01"))
+    cra_additional_percent = Column(Numeric(7, 4), nullable=False, default=Decimal("0.20"))
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    bands = relationship(
+        "TaxBand",
+        back_populates="config",
+        cascade="all, delete-orphan",
+        order_by="TaxBand.sequence",
+    )
+
+
+class TaxBand(Base):
+    """
+    One progressive PAYE band.
+
+    ``width`` is the size of the band, matching how the rates are published
+    ("the next 300,000 at 11%"). NULL width means the remainder — the top band.
+    """
+
+    __tablename__ = "tax_bands"
+
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    tax_config_id = Column(CHAR(36), ForeignKey("tax_configs.id", ondelete="CASCADE"), nullable=False)
+    sequence = Column(Integer, nullable=False)
+    width = Column(Numeric(15, 2), nullable=True)
+    rate = Column(Numeric(7, 4), nullable=False)
+
+    config = relationship("TaxConfig", back_populates="bands")
