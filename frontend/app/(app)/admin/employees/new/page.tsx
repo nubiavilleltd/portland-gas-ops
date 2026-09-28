@@ -22,6 +22,7 @@ import {
 } from "../../_components/_data";
 import { useDepartments } from "@/lib/modules/setups";
 import { useDeductionPreview } from "@/lib/modules/hr/tax-config";
+import PayeBreakdown from "@/components/hr/PayeBreakdown";
 
 type EmployeeFormState = Partial<Employee>;
 
@@ -251,7 +252,11 @@ export default function NewEmployeePage() {
               label="PAYE Tax"
               value={computed.paye > 0 ? formatNumber(computed.paye) : "0.00"}
               disabled
-              hint="[Annual gross − Pension − NHF − CRA] × 7/11/15/19/21/24% bands ÷ 12 · CRA = max(₦200k, 1% gross) + 20% gross"
+              hint={
+                preview?.configured
+                  ? `Progressive bands on taxable income — "${preview.config_name}"`
+                  : "Progressive bands on annual taxable income (after pension, NHF & relief)"
+              }
             />
             <FormInput
               label="Pension"
@@ -265,6 +270,7 @@ export default function NewEmployeePage() {
               disabled
               hint="2.5% × Basic Salary"
             />
+            <PayeBreakdown preview={preview} />
             <FormInput
               label="Loan Repayment" min={0} placeholder="0.00"
               onChange={(e) => {
