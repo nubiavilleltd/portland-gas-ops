@@ -1661,6 +1661,7 @@ def get_payroll_cost_by_department(
             func.coalesce(func.nullif(Payslip.department, ""), "Unassigned").label("department"),
             Payslip.id,
             Payslip.emp_code,
+            Payslip.period, Payslip.year,
             Payslip.basic, Payslip.housing, Payslip.transport, Payslip.meal,
             Payslip.paye, Payslip.pension, Payslip.nhf, Payslip.loan, Payslip.net,
             User.first_name, User.last_name,
@@ -1676,7 +1677,19 @@ def get_payroll_cost_by_department(
             "payslip_id": r.id,
             "emp_code": r.emp_code,
             "name": f"{r.first_name or ''} {r.last_name or ''}".strip() or r.emp_code,
+            # An employee can appear once per period; under "All periods" the
+            # same name repeats one row per payslip, so this is what tells them
+            # apart in the UI rather than looking like duplicate rows.
+            "period": r.period,
+            "year": r.year,
             "gross": float((r.basic or 0) + (r.housing or 0) + (r.transport or 0) + (r.meal or 0)),
+            # Broken out to match the department row above it (PAYE / Pension /
+            # Other), not just a combined total — same payslip columns, same
+            # figures, at both levels of the table.
+            "paye": float(r.paye or 0),
+            "pension": float(r.pension or 0),
+            "nhf": float(r.nhf or 0),
+            "loan": float(r.loan or 0),
             "deductions": float((r.paye or 0) + (r.pension or 0) + (r.nhf or 0) + (r.loan or 0)),
             "net": float(r.net or 0),
         }
