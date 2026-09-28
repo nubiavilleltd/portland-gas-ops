@@ -101,6 +101,13 @@ export function useDeleteTaxConfig() {
   });
 }
 
+export interface PreviewTaxBand {
+  sequence: number;
+  rate: number;
+  amount_taxed: number;
+  tax: number;
+}
+
 export interface DeductionPreview {
   configured: boolean;
   detail?: string;
@@ -112,6 +119,7 @@ export interface DeductionPreview {
   consolidated_relief?: number;
   taxable_income?: number;
   annual_tax?: number;
+  bands?: PreviewTaxBand[];
 }
 
 /**

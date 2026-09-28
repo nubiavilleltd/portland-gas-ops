@@ -261,7 +261,7 @@ export default function PayrollByDepartmentPage() {
                 <th className="text-right font-medium px-3 py-2.5">Pension</th>
                 <th className="text-right font-medium px-3 py-2.5">Other</th>
                 <th className="text-right font-medium px-3 py-2.5">Net</th>
-                <th className="text-right font-medium px-5 py-2.5">Share</th>
+                <th className="text-right font-medium px-5 py-2.5">% of Payroll</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-brand-border">
@@ -314,12 +314,26 @@ export default function PayrollByDepartmentPage() {
                             {e.emp_code ? (
                               <span className="font-mono text-xs"> · {e.emp_code}</span>
                             ) : null}
+                            {/* Only needed once more than one period is on screen — a single
+                                period already has just one payslip per person. period is
+                                already "July 2026" (the year is baked in), so it stands alone. */}
+                            {data.all_periods && (
+                              <span className="text-xs"> · {e.period}</span>
+                            )}
                           </td>
                           <td className="px-3 py-2" />
                           <td className="px-3 py-2 text-right tabular-nums text-brand-text-secondary">
                             {formatCurrency(e.gross)}
                           </td>
-                          <td className="px-3 py-2" colSpan={3} />
+                          <td className="px-3 py-2 text-right tabular-nums text-brand-text-secondary">
+                            {formatCurrency(e.paye)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-brand-text-secondary">
+                            {formatCurrency(e.pension)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums text-brand-text-secondary">
+                            {formatCurrency(e.nhf + e.loan)}
+                          </td>
                           <td className="px-3 py-2 text-right tabular-nums text-brand-text-secondary">
                             {formatCurrency(e.net)}
                           </td>
@@ -360,11 +374,6 @@ export default function PayrollByDepartmentPage() {
       </section>
 
       </div>
-
-      <p className="text-xs text-brand-text-secondary mt-3">
-        Grouped by the department recorded on each payslip when payroll ran, so
-        historical periods keep reporting the same figures after a transfer.
-      </p>
     </AppLayout>
   );
 }

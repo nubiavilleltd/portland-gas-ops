@@ -39,7 +39,15 @@ export interface EmployeeCost {
   payslip_id: string;
   emp_code: string | null;
   name: string;
+  /** Which payslip this row is — the same person appears once per period
+   * under "All periods", so this is what tells the rows apart. */
+  period: string;
+  year: number;
   gross: number;
+  paye: number;
+  pension: number;
+  nhf: number;
+  loan: number;
   deductions: number;
   net: number;
 }

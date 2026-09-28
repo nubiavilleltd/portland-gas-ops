@@ -19,6 +19,7 @@ import { useEmployeeLeaveBalances } from "@/lib/modules/leave-balances/hooks";
 import { useLeaveTypes } from "@/lib/modules/leave-types/hooks";
 import { useDepartments } from "@/lib/modules/setups";
 import { useDeductionPreview } from "@/lib/modules/hr/tax-config";
+import PayeBreakdown from "@/components/hr/PayeBreakdown";
 import {
   useEmployee,
   useUpdateEmployee,
@@ -470,6 +471,16 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
     nhf: preview?.nhf ?? 0,
   };
 
+  // Same calculation, fed by the employee's SAVED salary rather than the edit
+  // form — so the breakdown is visible on the page itself, not only while
+  // editing. Runs regardless of isEditing.
+  const { data: savedPreview } = useDeductionPreview({
+    basic: Number(emp?.basic_salary) || 0,
+    housing: Number(emp?.housing_allowance) || 0,
+    transport: Number(emp?.transport_allowance) || 0,
+    meal: Number(emp?.meal_allowance) || 0,
+  });
+
   const saveEmployee = async () => {
     // Capture pending uploads before clearing state
     const toUpload = pendingDocs.filter(d => d.file && d.docType);
@@ -701,13 +712,23 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                     }}
                   />
                 ))}
-                <FormInput label="PAYE Tax" value={computed.paye > 0 ? formatNumber(computed.paye) : "0.00"} disabled hint="Auto-computed from earnings" />
+                <FormInput
+                  label="PAYE Tax"
+                  value={computed.paye > 0 ? formatNumber(computed.paye) : "0.00"}
+                  disabled
+                  hint={
+                    preview?.configured
+                      ? `Progressive bands on taxable income — "${preview.config_name}"`
+                      : "Progressive bands on annual taxable income (after pension, NHF & relief)"
+                  }
+                />
                 <FormInput label="Pension"  value={computed.pension > 0 ? formatNumber(computed.pension) : "0.00"} disabled hint="8% × (Basic + Housing + Transport)" />
                 <FormInput label="NHF"      value={computed.nhf > 0 ? formatNumber(computed.nhf) : "0.00"} disabled hint="2.5% × Basic Salary" />
                 <FormInput label="Outstanding Amount"
                   value={totalOutstanding > 0 ? formatNumber(totalOutstanding) : "—"}
                   disabled
                   hint="Total outstanding across active loans — see Loans & Deductions below." />
+                <PayeBreakdown preview={preview} />
               </>
             ) : (
               <>
@@ -715,10 +736,15 @@ export default function EmployeeDetailPage({ params }: { params: Promise<{ id: s
                 <FormInput label="Housing Allowance"   value={fmt(emp.housing_allowance)}   />
                 <FormInput label="Transport Allowance" value={fmt(emp.transport_allowance)} />
                 <FormInput label="Meal Allowance"      value={fmt(emp.meal_allowance)}      />
-                <FormInput label="PAYE Tax"            value={fmt(emp.paye)}    hint="Auto-computed from earnings" />
+                <FormInput
+                  label="PAYE Tax"
+                  value={fmt(emp.paye)}
+                  hint="Progressive bands on annual taxable income (after pension, NHF & relief)"
+                />
                 <FormInput label="Pension"             value={fmt(emp.pension)} hint="8% × (Basic + Housing + Transport)" />
                 <FormInput label="NHF"                 value={fmt(emp.nhf)}     hint="2.5% × Basic Salary" />
                 <FormInput label="Outstanding Amount" value={totalOutstanding > 0 ? formatNumber(totalOutstanding) : "—"} hint="Total outstanding across active loans." />
+                <PayeBreakdown preview={savedPreview} />
               </>
             )}
           </div>

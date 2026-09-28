@@ -71,7 +71,12 @@ function SummaryCard({
    * count says "5 invoices · 7 cash requisitions" while the amounts below are
    * a combined figure, which cannot be reconciled against either number.
    */
-  breakdown?: { label: string; count: number; by_currency: CurrencyAmount[] }[];
+  breakdown?: {
+    label: string;
+    count: number;
+    by_currency: CurrencyAmount[];
+    href?: string;
+  }[];
 }) {
   // Drilled into one currency, the amount is finally a single meaningful
   // figure, so it leads. Across all currencies only the count can.
@@ -82,7 +87,11 @@ function SummaryCard({
     : String(summary.count);
 
   const body = (
-    <div className={`rounded-2xl p-5 h-full transition-colors ${styles.container}`}>
+    <div
+      className={`rounded-2xl p-5 h-full transition-all ${styles.container} ${
+        href ? "hover:shadow-md hover:-translate-y-0.5 cursor-pointer" : ""
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className={`text-sm ${styles.label}`}>{label}</p>
@@ -94,20 +103,33 @@ function SummaryCard({
       </div>
       {breakdown ? (
         <div className="mt-2.5 space-y-2">
-          {breakdown.map((b) => (
-            <div key={b.label}>
-              <p className="text-xs text-brand-text-secondary">
-                {b.label} · {b.count}
-              </p>
-              <p className="text-sm text-brand-text-primary tabular-nums">
-                {b.by_currency.length === 0
-                  ? "—"
-                  : b.by_currency
-                      .map((c) => formatCurrency(c.amount, c.currency))
-                      .join("  ·  ")}
-              </p>
-            </div>
-          ))}
+          {breakdown.map((b) => {
+            const amounts =
+              b.by_currency.length === 0
+                ? "—"
+                : b.by_currency
+                    .map((c) => formatCurrency(c.amount, c.currency))
+                    .join("  ·  ");
+            return b.href ? (
+              <Link
+                key={b.label}
+                href={b.href}
+                className="block -mx-1.5 rounded-lg px-1.5 py-0.5 transition-colors hover:bg-black/5"
+              >
+                <p className="text-xs text-brand-text-secondary">
+                  {b.label} · {b.count}
+                </p>
+                <p className="text-sm text-brand-text-primary tabular-nums">{amounts}</p>
+              </Link>
+            ) : (
+              <div key={b.label}>
+                <p className="text-xs text-brand-text-secondary">
+                  {b.label} · {b.count}
+                </p>
+                <p className="text-sm text-brand-text-primary tabular-nums">{amounts}</p>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <>
@@ -208,6 +230,12 @@ export default function FinanceOverview() {
   const paidRows = paid?.data ?? data.recently_paid;
   const paidTotal = paid?.total ?? data.recently_paid.length;
 
+  function withFilters(base: string, status: string) {
+    const params = new URLSearchParams({ status });
+    if (currency) params.set("currency", currency);
+    return `${base}?${params.toString()}`;
+  }
+
   return (
     <div className="mb-8 space-y-6">
       {data.currencies.length > 1 && (
@@ -253,11 +281,13 @@ export default function FinanceOverview() {
               label: "Invoices",
               count: invoicesAwaiting,
               by_currency: forCurrency(data.awaiting_approval.invoices),
+              href: withFilters("/admin/finance/invoices", "awaiting_approval"),
             },
             {
               label: "Cash requisitions",
               count: cashAwaiting,
               by_currency: forCurrency(data.awaiting_approval.cash_requisitions),
+              href: withFilters("/admin/finance/cash-requisitions", "awaiting_approval"),
             },
           ]}
         />
@@ -267,6 +297,7 @@ export default function FinanceOverview() {
           summary={data.awaiting_payment}
           icon={<Wallet size={18} />}
           variant="primary"
+          href={withFilters("/admin/finance/invoices", "approved")}
           sources={[plural(countIn(data.awaiting_payment), "invoice", "invoices")]}
         />
         <SummaryCard
@@ -275,6 +306,7 @@ export default function FinanceOverview() {
           summary={data.paid}
           icon={<CheckCircle2 size={18} />}
           variant="success"
+          href={withFilters("/admin/finance/invoices", "paid")}
           sources={[plural(countIn(data.paid), "invoice", "invoices")]}
         />
         <SummaryCard
@@ -283,6 +315,7 @@ export default function FinanceOverview() {
           summary={data.cancelled}
           icon={<XCircle size={18} />}
           variant="danger"
+          href={withFilters("/admin/finance/invoices", "cancelled")}
           sources={[plural(countIn(data.cancelled), "invoice", "invoices")]}
         />
       </div>
