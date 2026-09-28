@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
@@ -19,12 +20,37 @@ import { useCashRequisitions } from "@/lib/modules/cash-requisitions/hooks";
  */
 
 const STATUS_OPTIONS = [
+  // Not a real status — the sum of pending + in_progress, matching the
+  // Finance Dashboard's "Awaiting approval" card so the two agree.
+  { value: "awaiting_approval", label: "Awaiting Approval" },
   { value: "pending", label: "Pending" },
   { value: "in_progress", label: "In Progress" },
   { value: "returned", label: "Returned" },
   { value: "approved", label: "Approved" },
   { value: "denied", label: "Rejected" },
 ];
+
+/**
+ * Seeds the status/currency filters from a dashboard card link
+ * (?status=awaiting_approval&currency=EUR). Isolated in its own component
+ * because useSearchParams requires a Suspense boundary above it.
+ */
+function ApplyLinkedFilters({
+  onStatus,
+  onCurrency,
+}: {
+  onStatus: (v: string) => void;
+  onCurrency: (v: string) => void;
+}) {
+  const params = useSearchParams();
+  useEffect(() => {
+    const status = params.get("status");
+    const currency = params.get("currency");
+    if (status) onStatus(status);
+    if (currency) onCurrency(currency);
+  }, [params, onStatus, onCurrency]);
+  return null;
+}
 
 export default function AdminCashRequisitionsPage() {
   const { data: response, isLoading } = useCashRequisitions({
@@ -48,7 +74,11 @@ export default function AdminCashRequisitionsPage() {
   const visibleItems = useMemo(
     () =>
       allItems.filter((i) => {
-        if (activeStatus && i.status !== activeStatus) return false;
+        if (activeStatus === "awaiting_approval") {
+          if (i.status !== "pending" && i.status !== "in_progress") return false;
+        } else if (activeStatus && i.status !== activeStatus) {
+          return false;
+        }
         if (currency && i.currency !== currency) return false;
         return true;
       }),
@@ -57,6 +87,9 @@ export default function AdminCashRequisitionsPage() {
 
   return (
     <AppLayout pageTitle="All Cash Requisitions">
+      <Suspense fallback={null}>
+        <ApplyLinkedFilters onStatus={setActiveStatus} onCurrency={setCurrency} />
+      </Suspense>
       <Link
         href="/admin/finance"
         className="inline-flex items-center gap-1.5 text-sm text-brand-text-secondary hover:text-brand-purple mb-4"
