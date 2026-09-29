@@ -72,7 +72,7 @@ export default function CustomerInformationCard({
           onValueChange={(value) => onChange?.("category", value)}
         />
         <FormInput
-          label="Company Email"
+          label="Email"
           required
           value={values.companyEmail}
           error={errors?.companyEmail}
