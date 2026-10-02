@@ -2,6 +2,8 @@
 interface KpiCardProps {
   label: string;
   value: string | number;
+  /** Optional explanatory line rendered inside the card, under the value. */
+  description?: string;
   icon?: React.ReactNode;
   variant?: KpiCardVariant;
   isLoading?: boolean;
@@ -17,6 +19,7 @@ export type KpiCardVariant =
 export function KpiCard({
   label,
   value,
+  description,
   icon,
   variant = "primary",
   isLoading = false,
@@ -99,6 +102,9 @@ export function KpiCard({
         <h3 className={`text-2xl font-semibold mt-2 ${styles.value}`}>
           {value}
         </h3>
+        {description && (
+          <p className={`text-xs mt-1.5 ${styles.label}`}>{description}</p>
+        )}
       </div>
       {icon && <div className={styles.icon}>{icon}</div>}
     </div>
