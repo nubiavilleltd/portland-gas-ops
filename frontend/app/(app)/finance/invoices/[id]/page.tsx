@@ -371,9 +371,9 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 <FormInput label="Invoice ID"          value={apiRecord.invoice_id ?? "—"} />
                 <FormInput label="Purchase Order"      value={apiRecord.po_number ?? "—"} />
                 <FormInput label="Currency"            value={apiRecord.currency ?? "—"} />
-                <FormInput label="Gross Amount"        value={formatCurrency(Number(apiRecord.gross_amount ?? 0))} />
-                <FormInput label="VAT / WHT"           value={formatCurrency(Number(apiRecord.tax_amount ?? 0))} />
-                <FormInput label="Net Payable"         value={formatCurrency(Number(apiRecord.amount))} />
+                <FormInput label="Gross Amount"        value={formatCurrency(Number(apiRecord.gross_amount ?? 0), apiRecord.currency)} />
+                <FormInput label="VAT / WHT"           value={formatCurrency(Number(apiRecord.tax_amount ?? 0), apiRecord.currency)} />
+                <FormInput label="Net Payable"         value={formatCurrency(Number(apiRecord.amount), apiRecord.currency)} />
                 <div className="sm:col-span-2">
                   <FormTextarea label="Description of Goods / Services" value={apiRecord.description ?? ""} rows={3} />
                 </div>

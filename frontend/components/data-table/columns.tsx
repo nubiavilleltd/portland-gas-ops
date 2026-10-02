@@ -8,6 +8,7 @@ export interface CashRequest {
   title: string;
   department: string;
   amount: number;
+  currency?: string;
   requester: string;
   date: string;
   status: string;
@@ -21,6 +22,7 @@ export interface InvoiceRequest {
   title: string;
   department: string;
   amount: number;
+  currency?: string;
   vendor: string;
   invoiceNo: string;
   requester: string;
@@ -52,8 +54,10 @@ export const cashRequisitionColumns: Column<CashRequest>[] = [
     key: "amount",
     label: "Amount",
     sortable: true,
-    render: (v) => (
-      <span className="font-semibold whitespace-nowrap">{formatCurrency(Number(v))}</span>
+    render: (v, row) => (
+      <span className="font-semibold whitespace-nowrap">
+        {formatCurrency(Number(v), row.currency)}
+      </span>
     ),
   },
   { key: "requester", label: "Requester", sortable: true },
@@ -116,8 +120,10 @@ export const invoiceColumns: Column<InvoiceRequest>[] = [
     key: "amount",
     label: "Amount",
     sortable: true,
-    render: (v) => (
-      <span className="font-semibold whitespace-nowrap">{formatCurrency(Number(v))}</span>
+    render: (v, row) => (
+      <span className="font-semibold whitespace-nowrap">
+        {formatCurrency(Number(v), row.currency)}
+      </span>
     ),
   },
   { key: "vendor", label: "Vendor", sortable: true },

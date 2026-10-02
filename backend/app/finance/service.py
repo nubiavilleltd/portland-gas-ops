@@ -724,6 +724,38 @@ def _money_rows(rows) -> list[dict]:
     ]
 
 
+def _latest_action_by_request(db: Session, request_type: str, action) -> dict:
+    """
+    request_id -> (acted_at, actor_name) for the most recent ApprovalHistory
+    row matching this action. Used wherever a request type (cash requisitions)
+    has no direct approved_at/approved_by column of its own, the way
+    InvoiceProcessing.paid_at/paid_by does.
+    """
+    from app.shared.models.approval import ApprovalRequest, ApprovalHistory
+    from app.shared.models.user import User
+
+    rows = (
+        db.query(
+            ApprovalRequest.request_id,
+            ApprovalHistory.acted_at,
+            User.first_name,
+            User.last_name,
+        )
+        .join(ApprovalHistory, ApprovalHistory.approval_request_id == ApprovalRequest.id)
+        .outerjoin(Employee, Employee.id == ApprovalHistory.actor_id)
+        .outerjoin(User, User.id == Employee.user_id)
+        .filter(ApprovalRequest.request_type == request_type, ApprovalHistory.action == action)
+        .order_by(ApprovalHistory.acted_at.desc())
+        .all()
+    )
+    out: dict = {}
+    for request_id, acted_at, first, last in rows:
+        if request_id in out:
+            continue
+        out[request_id] = (acted_at, (f"{first or ''} {last or ''}".strip() or None))
+    return out
+
+
 def get_finance_dashboard(
     db: Session,
     workspace_id: Optional[str] = None,
@@ -735,7 +767,9 @@ def get_finance_dashboard(
     one already chosen.
     """
     from sqlalchemy import func as sa_func
-    from app.shared.models.approval import AllRequest, ApprovalRequest, ApprovalHistory
+    from app.shared.models.approval import (
+        AllRequest, ApprovalRequest, ApprovalHistory, ApprovalHistoryAction,
+    )
     from app.shared.models.user import User
 
     def scoped(model, request_type: str):
@@ -911,6 +945,74 @@ def get_finance_dashboard(
             "by_currency": per_currency,
         }
 
+    # ── 5. Cash requisitions: approved + denied mirrors of the invoice cards ──
+    # Cash requisitions have no "paid"/"cancelled" terminal states — money is
+    # disbursed on approval and later retired. "Approved" here is the mirror of
+    # the invoice "approved — awaiting payment" card: approved but not yet
+    # retired. There is no direct approved_at/approved_by column (same as
+    # invoices), so it is read off the latest "approved" ApprovalHistory entry
+    # per request, same pattern as approved_at_sub above but keeping the actor.
+    cash_approved_actions = _latest_action_by_request(
+        db, "cash_requisition", ApprovalHistoryAction.approved
+    )
+
+    approved_cash_q = scoped(CashRequisition, "cash_requisition").filter(
+        CashRequisition.status == CashRequisitionStatus.approved
+    )
+    if currency:
+        approved_cash_q = approved_cash_q.filter(CashRequisition.currency == currency)
+    approved_cash_rows = approved_cash_q.all()
+
+    recently_approved_cash = []
+    for cr in approved_cash_rows:
+        acted_at, actor_name = cash_approved_actions.get(cr.id, (None, None))
+        recently_approved_cash.append({
+            "id": cr.id,
+            "reference": cr.reference,
+            "title": cr.title,
+            "department": cr.department,
+            "amount": float(cr.amount or 0),
+            "currency": cr.currency or "NGN",
+            "approved_at": acted_at.isoformat() if acted_at else None,
+            "approved_by_name": actor_name,
+        })
+    recently_approved_cash.sort(key=lambda r: r["approved_at"] or "", reverse=True)
+    recently_approved_cash = recently_approved_cash[:8]
+
+    cash_ageing: list[dict] = []
+    for label, lo, hi in buckets:
+        acc: dict[str, list] = {}
+        members: list[dict] = []
+        for cr in approved_cash_rows:
+            acted_at, _ = cash_approved_actions.get(cr.id, (None, None))
+            cur = cr.currency or "NGN"
+            if acted_at is None:
+                days = 0
+            else:
+                ref = acted_at if acted_at.tzinfo else acted_at.replace(tzinfo=timezone.utc)
+                days = (now - ref).days
+            if lo <= days <= hi:
+                bucket = acc.setdefault(cur, [cur, 0, 0.0])
+                bucket[1] += 1
+                bucket[2] += float(cr.amount or 0)
+                members.append({
+                    "id": cr.id,
+                    "reference": cr.reference,
+                    "title": cr.title,
+                    "department": cr.department,
+                    "amount": float(cr.amount or 0),
+                    "currency": cur,
+                    "approved_at": acted_at.isoformat() if acted_at else None,
+                    "days_waiting": days,
+                })
+        members.sort(key=lambda m: m["days_waiting"], reverse=True)
+        cash_ageing.append({
+            "bucket": label,
+            "count": sum(b[1] for b in acc.values()),
+            "by_currency": _money_rows([(c, n, t) for c, n, t in acc.values()]),
+            "requisitions": members,
+        })
+
     currencies = sorted(
         {(c or "NGN") for _, c, _, _ in inv_rows} | {(c or "NGN") for _, c, _, _ in cash_rows}
     )
@@ -927,6 +1029,10 @@ def get_finance_dashboard(
         "cancelled": summarise(inv_rows, ("cancelled",)),
         "recently_paid": recently_paid,
         "ageing": ageing,
+        "cash_approved": summarise(cash_rows, ("approved",)),
+        "cash_denied": summarise(cash_rows, ("denied",)),
+        "recently_approved_cash": recently_approved_cash,
+        "cash_ageing": cash_ageing,
     }
 
 
@@ -997,6 +1103,70 @@ def get_paid_invoices(
             }
             for r in rows
         ],
+        "total": total,
+        "skip": skip,
+        "limit": limit,
+    }
+
+
+def get_approved_cash_requisitions(
+    db: Session,
+    workspace_id: Optional[str] = None,
+    currency: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 8,
+) -> dict:
+    """
+    Paginated feed of approved-and-not-yet-retired cash requisitions — the
+    cash-requisition mirror of get_paid_invoices.
+
+    Unlike InvoiceProcessing.paid_at, there is no direct approved_at/approved_by
+    column here, so the timestamp and approver come from ApprovalHistory and the
+    page is sliced in Python rather than via a correlated-subquery ORDER BY —
+    cash requisition volumes are small enough that this is simpler and reuses
+    the exact same lookup the dashboard uses for its own preview of this list.
+    """
+    from app.shared.models.approval import AllRequest, ApprovalHistoryAction
+
+    base = db.query(CashRequisition).join(
+        AllRequest,
+        and_(
+            AllRequest.request_type == "cash_requisition",
+            AllRequest.request_id == CashRequisition.id,
+        ),
+    ).filter(CashRequisition.status == CashRequisitionStatus.approved)
+
+    if workspace_id:
+        base = base.filter(AllRequest.workspace_id == workspace_id)
+    if currency:
+        base = base.filter(CashRequisition.currency == currency)
+
+    actions = _latest_action_by_request(db, "cash_requisition", ApprovalHistoryAction.approved)
+
+    def sort_key(cr) -> str:
+        acted_at, _ = actions.get(cr.id, (None, None))
+        return acted_at.isoformat() if acted_at else ""
+
+    rows = sorted(base.all(), key=sort_key, reverse=True)
+    total = len(rows)
+    page = rows[skip: skip + limit]
+
+    data = []
+    for cr in page:
+        acted_at, actor_name = actions.get(cr.id, (None, None))
+        data.append({
+            "id": cr.id,
+            "reference": cr.reference,
+            "title": cr.title,
+            "department": cr.department,
+            "amount": float(cr.amount or 0),
+            "currency": cr.currency or "NGN",
+            "approved_at": acted_at.isoformat() if acted_at else None,
+            "approved_by_name": actor_name,
+        })
+
+    return {
+        "data": data,
         "total": total,
         "skip": skip,
         "limit": limit,
