@@ -53,6 +53,36 @@ export interface AgeingBucket {
   invoices: AgeingInvoice[];
 }
 
+export interface ApprovedCashRequisition {
+  id: string;
+  reference: string;
+  title: string;
+  department: string | null;
+  amount: number;
+  currency: string;
+  approved_at: string | null;
+  approved_by_name: string | null;
+}
+
+export interface CashAgeingRequisition {
+  id: string;
+  reference: string;
+  title: string;
+  department: string | null;
+  amount: number;
+  currency: string;
+  approved_at: string | null;
+  days_waiting: number;
+}
+
+export interface CashAgeingBucket {
+  bucket: string;
+  count: number;
+  by_currency: CurrencyAmount[];
+  /** The requisitions behind the number, longest-waiting first. */
+  requisitions: CashAgeingRequisition[];
+}
+
 export interface FinanceDashboard {
   /** Every currency in play — stays complete even while one is selected. */
   currencies: string[];
@@ -67,6 +97,11 @@ export interface FinanceDashboard {
   cancelled: Summary;
   recently_paid: PaidInvoice[];
   ageing: AgeingBucket[];
+  /** Approved cash requisitions — disbursed, not yet retired. */
+  cash_approved: Summary;
+  cash_denied: Summary;
+  recently_approved_cash: ApprovedCashRequisition[];
+  cash_ageing: CashAgeingBucket[];
 }
 
 export function useFinanceDashboard(currency?: string | null) {
@@ -107,6 +142,32 @@ export function usePaidInvoices(currency: string | null, page: number) {
     queryKey: ["finance-paid-invoices", currency ?? "all", page],
     queryFn: () =>
       get<PaidInvoicePage>("/api/finance/paid-invoices", {
+        ...(currency ? { currency } : {}),
+        skip: (page - 1) * PAID_PAGE_SIZE,
+        limit: PAID_PAGE_SIZE,
+      }),
+    placeholderData: (prev) => prev,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+}
+
+export interface ApprovedCashRequisitionPage {
+  data: ApprovedCashRequisition[];
+  total: number;
+  skip: number;
+  limit: number;
+}
+
+/**
+ * The approved-cash-requisition feed — the cash-requisition mirror of
+ * usePaidInvoices, paged separately for the same reason.
+ */
+export function useApprovedCashRequisitions(currency: string | null, page: number) {
+  return useQuery<ApprovedCashRequisitionPage>({
+    queryKey: ["finance-approved-cash-requisitions", currency ?? "all", page],
+    queryFn: () =>
+      get<ApprovedCashRequisitionPage>("/api/finance/approved-cash-requisitions", {
         ...(currency ? { currency } : {}),
         skip: (page - 1) * PAID_PAGE_SIZE,
         limit: PAID_PAGE_SIZE,
