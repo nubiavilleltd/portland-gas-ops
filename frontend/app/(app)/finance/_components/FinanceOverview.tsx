@@ -181,6 +181,7 @@ export default function FinanceOverview() {
   const [paidPage, setPaidPage] = useState(1);
   const [cashApprovedPage, setCashApprovedPage] = useState(1);
   const [openBucket, setOpenBucket] = useState<string | null>(null);
+  const [bucketPage, setBucketPage] = useState(1);
   const { data, isLoading, isError, isFetching } = useFinanceDashboard(currency);
   const { data: paid } = usePaidInvoices(currency, paidPage);
   const { data: approvedCash } = useApprovedCashRequisitions(currency, cashApprovedPage);
@@ -189,6 +190,7 @@ export default function FinanceOverview() {
     setCurrency(next);
     setPaidPage(1);
     setCashApprovedPage(1);
+    setBucketPage(1);
   }
 
   function selectView(next: RequestView) {
@@ -196,6 +198,7 @@ export default function FinanceOverview() {
     setSwapDirection(next === "cash" ? "in" : "out");
     setView(next);
     setOpenBucket(null);
+    setBucketPage(1);
   }
 
   if (isLoading) {
@@ -464,7 +467,10 @@ export default function FinanceOverview() {
                       <li key={b.bucket}>
                         <button
                           type="button"
-                          onClick={() => setOpenBucket(open ? null : b.bucket)}
+                          onClick={() => {
+                            setOpenBucket(open ? null : b.bucket);
+                            setBucketPage(1);
+                          }}
                           disabled={b.count === 0}
                           aria-expanded={open}
                           className="w-full px-5 py-3 flex items-start justify-between gap-3 text-left enabled:hover:bg-gray-50 disabled:cursor-default transition-colors"
@@ -505,34 +511,47 @@ export default function FinanceOverview() {
                         </button>
 
                         {open && b.invoices.length > 0 && (
-                          <ul className="bg-gray-50/70 border-t border-brand-border divide-y divide-brand-border">
-                            {b.invoices.map((inv) => (
-                              <li key={inv.id}>
-                                <Link
-                                  href={`/finance/invoices/${inv.id}`}
-                                  className="flex items-start justify-between gap-3 px-5 py-2.5 pl-11 hover:bg-white transition-colors group"
-                                >
-                                  <span className="min-w-0">
-                                    <span className="block text-sm text-brand-text-primary truncate group-hover:text-brand-purple">
-                                      {inv.title}
+                          <>
+                            <ul className="bg-gray-50/70 border-t border-brand-border divide-y divide-brand-border">
+                              {b.invoices
+                                .slice((bucketPage - 1) * PAID_PAGE_SIZE, bucketPage * PAID_PAGE_SIZE)
+                                .map((inv) => (
+                                <li key={inv.id}>
+                                  <Link
+                                    href={`/finance/invoices/${inv.id}`}
+                                    className="flex items-start justify-between gap-3 px-5 py-2.5 pl-11 hover:bg-white transition-colors group"
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block text-sm text-brand-text-primary truncate group-hover:text-brand-purple">
+                                        {inv.title}
+                                      </span>
+                                      <span className="block text-xs text-brand-text-secondary truncate">
+                                        <span className="font-mono">{inv.reference}</span>
+                                        {inv.invoice_number ? ` · Invoice #${inv.invoice_number}` : ""}
+                                        {inv.vendor ? ` · ${inv.vendor}` : ""}
+                                      </span>
+                                      <span className="block text-xs text-brand-text-secondary">
+                                        Waiting {inv.days_waiting} day
+                                        {inv.days_waiting === 1 ? "" : "s"}
+                                      </span>
                                     </span>
-                                    <span className="block text-xs text-brand-text-secondary truncate">
-                                      <span className="font-mono">{inv.reference}</span>
-                                      {inv.invoice_number ? ` · Invoice #${inv.invoice_number}` : ""}
-                                      {inv.vendor ? ` · ${inv.vendor}` : ""}
+                                    <span className="text-sm font-medium whitespace-nowrap tabular-nums">
+                                      {formatCurrency(inv.amount, inv.currency)}
                                     </span>
-                                    <span className="block text-xs text-brand-text-secondary">
-                                      Waiting {inv.days_waiting} day
-                                      {inv.days_waiting === 1 ? "" : "s"}
-                                    </span>
-                                  </span>
-                                  <span className="text-sm font-medium whitespace-nowrap tabular-nums">
-                                    {formatCurrency(inv.amount, inv.currency)}
-                                  </span>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                            {b.invoices.length > PAID_PAGE_SIZE && (
+                              <div className="bg-gray-50/70 border-t border-brand-border px-5 py-3">
+                                <Pagination
+                                  currentPage={bucketPage}
+                                  totalPages={Math.ceil(b.invoices.length / PAID_PAGE_SIZE)}
+                                  onPageChange={setBucketPage}
+                                />
+                              </div>
+                            )}
+                          </>
                         )}
                       </li>
                     );
@@ -634,7 +653,10 @@ export default function FinanceOverview() {
                       <li key={b.bucket}>
                         <button
                           type="button"
-                          onClick={() => setOpenBucket(open ? null : b.bucket)}
+                          onClick={() => {
+                            setOpenBucket(open ? null : b.bucket);
+                            setBucketPage(1);
+                          }}
                           disabled={b.count === 0}
                           aria-expanded={open}
                           className="w-full px-5 py-3 flex items-start justify-between gap-3 text-left enabled:hover:bg-gray-50 disabled:cursor-default transition-colors"
@@ -675,33 +697,46 @@ export default function FinanceOverview() {
                         </button>
 
                         {open && b.requisitions.length > 0 && (
-                          <ul className="bg-gray-50/70 border-t border-brand-border divide-y divide-brand-border">
-                            {b.requisitions.map((req) => (
-                              <li key={req.id}>
-                                <Link
-                                  href={`/finance/cash-requisitions/${req.id}`}
-                                  className="flex items-start justify-between gap-3 px-5 py-2.5 pl-11 hover:bg-white transition-colors group"
-                                >
-                                  <span className="min-w-0">
-                                    <span className="block text-sm text-brand-text-primary truncate group-hover:text-brand-purple">
-                                      {req.title}
+                          <>
+                            <ul className="bg-gray-50/70 border-t border-brand-border divide-y divide-brand-border">
+                              {b.requisitions
+                                .slice((bucketPage - 1) * PAID_PAGE_SIZE, bucketPage * PAID_PAGE_SIZE)
+                                .map((req) => (
+                                <li key={req.id}>
+                                  <Link
+                                    href={`/finance/cash-requisitions/${req.id}`}
+                                    className="flex items-start justify-between gap-3 px-5 py-2.5 pl-11 hover:bg-white transition-colors group"
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block text-sm text-brand-text-primary truncate group-hover:text-brand-purple">
+                                        {req.title}
+                                      </span>
+                                      <span className="block text-xs text-brand-text-secondary truncate">
+                                        <span className="font-mono">{req.reference}</span>
+                                        {req.department ? ` · ${req.department}` : ""}
+                                      </span>
+                                      <span className="block text-xs text-brand-text-secondary">
+                                        Waiting {req.days_waiting} day
+                                        {req.days_waiting === 1 ? "" : "s"}
+                                      </span>
                                     </span>
-                                    <span className="block text-xs text-brand-text-secondary truncate">
-                                      <span className="font-mono">{req.reference}</span>
-                                      {req.department ? ` · ${req.department}` : ""}
+                                    <span className="text-sm font-medium whitespace-nowrap tabular-nums">
+                                      {formatCurrency(req.amount, req.currency)}
                                     </span>
-                                    <span className="block text-xs text-brand-text-secondary">
-                                      Waiting {req.days_waiting} day
-                                      {req.days_waiting === 1 ? "" : "s"}
-                                    </span>
-                                  </span>
-                                  <span className="text-sm font-medium whitespace-nowrap tabular-nums">
-                                    {formatCurrency(req.amount, req.currency)}
-                                  </span>
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                            {b.requisitions.length > PAID_PAGE_SIZE && (
+                              <div className="bg-gray-50/70 border-t border-brand-border px-5 py-3">
+                                <Pagination
+                                  currentPage={bucketPage}
+                                  totalPages={Math.ceil(b.requisitions.length / PAID_PAGE_SIZE)}
+                                  onPageChange={setBucketPage}
+                                />
+                              </div>
+                            )}
+                          </>
                         )}
                       </li>
                     );
