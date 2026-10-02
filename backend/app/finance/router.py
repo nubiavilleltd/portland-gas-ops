@@ -458,3 +458,18 @@ def paid_invoices(
     /dashboard so paging the list does not re-run the summary aggregates.
     """
     return service.get_paid_invoices(db, currency=currency, skip=skip, limit=limit)
+
+
+@router.get("/approved-cash-requisitions", response_model=dict)
+def approved_cash_requisitions(
+    currency: Optional[str] = Query(None, description="Restrict to one currency"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(8, ge=1, le=50),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Paginated feed of approved cash requisitions for the finance dashboard's
+    cash-requisition view — the mirror of /paid-invoices.
+    """
+    return service.get_approved_cash_requisitions(db, currency=currency, skip=skip, limit=limit)

@@ -276,7 +276,7 @@ export default function CashRequisitionDetailPage({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormInput label="Title / Purpose"   value={apiRecord.title} />
                 <FormInput label="Currency"          value={apiRecord.currency ?? "—"} />
-                <FormInput label="Amount Requested"  value={formatCurrency(Number(apiRecord.amount))} />
+                <FormInput label="Amount Requested"  value={formatCurrency(Number(apiRecord.amount), apiRecord.currency)} />
                 {/* Expected Retirement — hidden for now
                 <FormInput label="Expected Retirement" value={apiRecord.expected_retirement ? formatDate(apiRecord.expected_retirement) : "—"} /> */}
                 <div className="sm:col-span-2">

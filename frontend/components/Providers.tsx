@@ -31,6 +31,28 @@ export const queryClient = new QueryClient({
 });
 
 /**
+ * Bounds a promise to at most `ms`. The shared axios instance has no timeout
+ * configured (deliberately — several legitimate calls in this app run for a
+ * second or more against a remote database), so nothing stops a stalled
+ * request from hanging forever. That is fine for most calls, but this one
+ * gates whether the entire app renders anything at all (see BrandingGate),
+ * so a hang here must not be able to leave the page permanently blank.
+ *
+ * The underlying request is not cancelled — it is left to finish in the
+ * background and its result is simply ignored once the timeout has already
+ * settled this promise.
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timed out")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
+/**
  * On mount, silently attempt to restore the session by exchanging the HttpOnly
  * refresh_token cookie for a new access token. If it succeeds the user stays
  * logged in seamlessly after a page refresh. If it fails (cookie missing/expired)
@@ -81,7 +103,7 @@ function BrandingRestore() {
     let cancelled = false;
     branding.setWorkspaceResolved(false);
 
-    fetchCurrentWorkspace()
+    withTimeout(fetchCurrentWorkspace(), 8000)
       .then((workspace) => {
         if (cancelled) return;
 

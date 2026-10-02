@@ -2,7 +2,7 @@
 
 import { Fragment, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, Search } from "lucide-react";
 import AppLayout from "@/components/layout/AppLayout";
 import PageHeader from "@/components/ui/PageHeader";
 import SelectInput from "@/components/forms/SelectInput";
@@ -23,6 +23,7 @@ import {
  */
 
 const DEPTS_PER_PAGE = 10;
+const EMPLOYEES_PER_PAGE = 10;
 const ALL_PERIODS = "__all__";
 
 /** Card with the label, value and an explanatory line beneath. */
@@ -58,6 +59,8 @@ export default function PayrollByDepartmentPage() {
   const [openDept, setOpenDept] = useState<string | null>(null);
   const [deptFilter, setDeptFilter] = useState("");
   const [page, setPage] = useState(1);
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeePage, setEmployeePage] = useState(1);
 
   if (isLoading && !data) {
     return (
@@ -150,6 +153,8 @@ export default function PayrollByDepartmentPage() {
               setDeptFilter(v);
               setOpenDept(null);
               setPage(1);
+              setEmployeeSearch("");
+              setEmployeePage(1);
             }}
             options={data.all_departments.map((name) => {
               const inPeriod = departments.find((d) => d.department === name);
@@ -176,6 +181,8 @@ export default function PayrollByDepartmentPage() {
               }
               setOpenDept(null);
               setPage(1);
+              setEmployeeSearch("");
+              setEmployeePage(1);
             }}
             options={[
               {
@@ -209,7 +216,7 @@ export default function PayrollByDepartmentPage() {
       <div
         className={`transition-opacity ${isFetching ? "opacity-50 pointer-events-none" : ""}`}
       >
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-6">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
         <Kpi
           label="Total payroll cost"
           value={formatCurrency(totals.gross)}
@@ -277,10 +284,31 @@ export default function PayrollByDepartmentPage() {
               {pagedDepartments.map((d: DepartmentCost) => {
                 const open = openDept === d.department;
                 const people = employees.filter((e) => e.department === d.department);
+                const query = employeeSearch.trim().toLowerCase();
+                const filteredPeople = query
+                  ? people.filter(
+                      (e) =>
+                        e.name.toLowerCase().includes(query) ||
+                        (e.emp_code ?? "").toLowerCase().includes(query),
+                    )
+                  : people;
+                const employeeTotalPages = Math.max(
+                  1,
+                  Math.ceil(filteredPeople.length / EMPLOYEES_PER_PAGE),
+                );
+                const safeEmployeePage = Math.min(employeePage, employeeTotalPages);
+                const pagedPeople = filteredPeople.slice(
+                  (safeEmployeePage - 1) * EMPLOYEES_PER_PAGE,
+                  safeEmployeePage * EMPLOYEES_PER_PAGE,
+                );
                 return (
                   <Fragment key={d.department}>
                     <tr
-                      onClick={() => setOpenDept(open ? null : d.department)}
+                      onClick={() => {
+                        setOpenDept(open ? null : d.department);
+                        setEmployeeSearch("");
+                        setEmployeePage(1);
+                      }}
                       className="cursor-pointer hover:bg-gray-50 transition-colors"
                     >
                       <td className="px-5 py-3 font-medium text-brand-text-primary">
@@ -306,8 +334,40 @@ export default function PayrollByDepartmentPage() {
                         {d.share_of_net}%
                       </td>
                     </tr>
+                    {open && people.length > 0 && (
+                      <tr className="bg-gray-50/70">
+                        <td colSpan={8} className="px-5 pl-12 py-2">
+                          <div className="relative max-w-xs">
+                            <Search
+                              size={13}
+                              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-brand-text-secondary"
+                            />
+                            <input
+                              type="text"
+                              value={employeeSearch}
+                              onChange={(ev) => {
+                                setEmployeeSearch(ev.target.value);
+                                setEmployeePage(1);
+                              }}
+                              placeholder={`Search ${d.department} staff…`}
+                              className="w-full h-8 pl-8 pr-3 text-xs rounded-lg border border-brand-border bg-white focus:outline-none focus:ring-1 focus:ring-brand-purple"
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    {open && people.length > 0 && pagedPeople.length === 0 && (
+                      <tr className="bg-gray-50/70">
+                        <td
+                          colSpan={8}
+                          className="px-5 pl-12 py-3 text-xs text-brand-text-secondary"
+                        >
+                          No staff match &ldquo;{employeeSearch}&rdquo;.
+                        </td>
+                      </tr>
+                    )}
                     {open &&
-                      people.map((e) => (
+                      pagedPeople.map((e) => (
                         <tr key={e.payslip_id} className="bg-gray-50/70">
                           <td className="px-5 py-2 pl-12 text-brand-text-secondary">
                             {e.name}
@@ -340,6 +400,17 @@ export default function PayrollByDepartmentPage() {
                           <td className="px-5 py-2" />
                         </tr>
                       ))}
+                    {open && employeeTotalPages > 1 && (
+                      <tr className="bg-gray-50/70">
+                        <td colSpan={8} className="px-5 pb-3">
+                          <Pagination
+                            currentPage={safeEmployeePage}
+                            totalPages={employeeTotalPages}
+                            onPageChange={setEmployeePage}
+                          />
+                        </td>
+                      </tr>
+                    )}
                   </Fragment>
                 );
               })}
