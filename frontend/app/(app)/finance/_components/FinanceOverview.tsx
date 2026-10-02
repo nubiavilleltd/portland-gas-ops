@@ -564,7 +564,7 @@ export default function FinanceOverview() {
               <header className="px-5 py-4 border-b border-brand-border">
                 <h3 className="text-sm font-semibold text-brand-text-primary">Recently approved</h3>
                 <p className="text-xs text-brand-text-secondary mt-0.5">
-                  Approved, not yet retired
+                  Approved cash requisitions
                   {cashApprovedTotal > 0 ? ` · ${cashApprovedTotal} total` : ""}.
                 </p>
               </header>
@@ -612,19 +612,19 @@ export default function FinanceOverview() {
               )}
             </section>
 
-            {/* How long approved cash requisitions have gone unretired */}
+            {/* How long cash requisitions have been sitting unapproved */}
             <section className="rounded-2xl border border-brand-border bg-white">
               <header className="px-5 py-4 border-b border-brand-border">
                 <h3 className="text-sm font-semibold text-brand-text-primary">
-                  Approved, awaiting retirement
+                  Awaiting approval
                 </h3>
                 <p className="text-xs text-brand-text-secondary mt-0.5">
-                  Time since the final approval.
+                  Time since submission.
                 </p>
               </header>
               {data.cash_ageing.every((b) => b.count === 0) ? (
                 <p className="px-5 py-6 text-sm text-brand-text-secondary">
-                  Nothing is approved and waiting on retirement.
+                  Nothing is currently awaiting approval.
                 </p>
               ) : (
                 <ul className="divide-y divide-brand-border">
