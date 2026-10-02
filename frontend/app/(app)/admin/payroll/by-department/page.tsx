@@ -40,8 +40,7 @@ function Kpi({
 }) {
   return (
     <div className="[&>div]:h-full">
-      <KpiCard label={label} value={value} variant={variant} />
-      {sub && <p className="text-xs text-brand-text-secondary mt-1.5 px-1">{sub}</p>}
+      <KpiCard label={label} value={value} description={sub} variant={variant} />
     </div>
   );
 }
