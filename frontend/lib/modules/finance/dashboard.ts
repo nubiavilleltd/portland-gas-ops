@@ -71,7 +71,8 @@ export interface CashAgeingRequisition {
   department: string | null;
   amount: number;
   currency: string;
-  approved_at: string | null;
+  /** When this entered the approval queue — a resubmit records a fresh one. */
+  submitted_at: string | null;
   days_waiting: number;
 }
 
@@ -79,7 +80,7 @@ export interface CashAgeingBucket {
   bucket: string;
   count: number;
   by_currency: CurrencyAmount[];
-  /** The requisitions behind the number, longest-waiting first. */
+  /** The requisitions still awaiting approval, longest-waiting first. */
   requisitions: CashAgeingRequisition[];
 }
 
@@ -97,7 +98,7 @@ export interface FinanceDashboard {
   cancelled: Summary;
   recently_paid: PaidInvoice[];
   ageing: AgeingBucket[];
-  /** Approved cash requisitions — disbursed, not yet retired. */
+  /** Approved cash requisitions. */
   cash_approved: Summary;
   cash_denied: Summary;
   recently_approved_cash: ApprovedCashRequisition[];
