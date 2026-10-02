@@ -756,6 +756,31 @@ def _latest_action_by_request(db: Session, request_type: str, action) -> dict:
     return out
 
 
+def _latest_audit_time(db: Session, request_type: str, action) -> dict:
+    """
+    request_id -> most recent WorkflowAuditTrail.acted_at matching this action.
+    Used for events the approval workflow doesn't model as an ApprovalHistory
+    row (e.g. "submitted", which happens before any approver has acted).
+    """
+    from app.shared.models.approval import WorkflowAuditTrail
+
+    rows = (
+        db.query(WorkflowAuditTrail.request_id, WorkflowAuditTrail.acted_at)
+        .filter(
+            WorkflowAuditTrail.request_type == request_type,
+            WorkflowAuditTrail.action == action,
+        )
+        .order_by(WorkflowAuditTrail.acted_at.desc())
+        .all()
+    )
+    out: dict = {}
+    for request_id, acted_at in rows:
+        if request_id in out:
+            continue
+        out[request_id] = acted_at
+    return out
+
+
 def get_finance_dashboard(
     db: Session,
     workspace_id: Optional[str] = None,
@@ -769,6 +794,7 @@ def get_finance_dashboard(
     from sqlalchemy import func as sa_func
     from app.shared.models.approval import (
         AllRequest, ApprovalRequest, ApprovalHistory, ApprovalHistoryAction,
+        AuditAction,
     )
     from app.shared.models.user import User
 
@@ -979,17 +1005,38 @@ def get_finance_dashboard(
     recently_approved_cash.sort(key=lambda r: r["approved_at"] or "", reverse=True)
     recently_approved_cash = recently_approved_cash[:8]
 
+    # ── 6. Cash requisitions: ageing of what is still awaiting approval ──────
+    # Mirrors the invoice ageing above, but for the "Awaiting approval" card
+    # rather than "Approved" — cash requisitions have no payment step of their
+    # own, so the thing worth watching for delay is approval, not settlement.
+    # "Submitted" (from the workflow audit trail, same table the invoice
+    # ageing's approved_at is read from) is when it first entered the approval
+    # queue — a resubmit after being returned records a fresh one, so the
+    # latest is the right anchor for "how long has this been waiting".
+    submitted_at_by_request = _latest_audit_time(
+        db, "cash_requisition", AuditAction.submitted
+    )
+
+    pending_cash_q = scoped(CashRequisition, "cash_requisition").filter(
+        CashRequisition.status.in_(
+            [CashRequisitionStatus.pending, CashRequisitionStatus.in_progress]
+        )
+    )
+    if currency:
+        pending_cash_q = pending_cash_q.filter(CashRequisition.currency == currency)
+    pending_cash_rows = pending_cash_q.all()
+
     cash_ageing: list[dict] = []
     for label, lo, hi in buckets:
         acc: dict[str, list] = {}
         members: list[dict] = []
-        for cr in approved_cash_rows:
-            acted_at, _ = cash_approved_actions.get(cr.id, (None, None))
+        for cr in pending_cash_rows:
+            submitted_at = submitted_at_by_request.get(cr.id) or cr.created_at
             cur = cr.currency or "NGN"
-            if acted_at is None:
+            if submitted_at is None:
                 days = 0
             else:
-                ref = acted_at if acted_at.tzinfo else acted_at.replace(tzinfo=timezone.utc)
+                ref = submitted_at if submitted_at.tzinfo else submitted_at.replace(tzinfo=timezone.utc)
                 days = (now - ref).days
             if lo <= days <= hi:
                 bucket = acc.setdefault(cur, [cur, 0, 0.0])
@@ -1002,7 +1049,7 @@ def get_finance_dashboard(
                     "department": cr.department,
                     "amount": float(cr.amount or 0),
                     "currency": cur,
-                    "approved_at": acted_at.isoformat() if acted_at else None,
+                    "submitted_at": submitted_at.isoformat() if submitted_at else None,
                     "days_waiting": days,
                 })
         members.sort(key=lambda m: m["days_waiting"], reverse=True)
