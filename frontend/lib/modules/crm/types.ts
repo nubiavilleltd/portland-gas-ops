@@ -53,6 +53,7 @@ export interface CustomerOnboarding {
   // Workflow
   status: CustomerOnboardingStatus;
   customer_status: CustomerOnboardingStatus;
+  created_at: string;
   activities: CustomerOnboardingActivity[];
 
   // Documents
