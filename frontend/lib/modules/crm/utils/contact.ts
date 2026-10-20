@@ -125,7 +125,7 @@ function validateContactFields(
   // ------------------------------------------------------------
   // Alternate phone
   // ------------------------------------------------------------
-  console.log(alternatePhone, "alternatePhone");
+
   if (alternatePhone) {
     if (alternatePhone.length > CONTACT_MAX_LENGTHS.alternatePhone) {
       setError(
@@ -149,9 +149,7 @@ function validateContactFields(
   // Department
   // ------------------------------------------------------------
 
-  if (!department) {
-    setError("department", "Department is required.");
-  } else if (department.length > CONTACT_MAX_LENGTHS.department) {
+  if (department.length > CONTACT_MAX_LENGTHS.department) {
     setError(
       "department",
       `Department cannot exceed ${CONTACT_MAX_LENGTHS.department} characters.`,
@@ -173,9 +171,7 @@ function validateContactFields(
   // Role
   // ------------------------------------------------------------
 
-  if (!role) {
-    setError("role", "Role is required.");
-  } else if (role.length > CONTACT_MAX_LENGTHS.role) {
+  if (role.length > CONTACT_MAX_LENGTHS.role) {
     setError(
       "role",
       `Role cannot exceed ${CONTACT_MAX_LENGTHS.role} characters.`,
@@ -186,9 +182,7 @@ function validateContactFields(
   // Preferred channel
   // ------------------------------------------------------------
 
-  if (!preferredChannel) {
-    setError("preferred_channel", "Preferred channel is required.");
-  } else if (!isValidPreferredChannel(preferredChannel)) {
+  if (preferredChannel && !isValidPreferredChannel(preferredChannel)) {
     setError("preferred_channel", "Select a valid preferred channel.");
   }
 }
@@ -302,9 +296,12 @@ export function buildContactsPayload(contacts: ContactForm[]) {
       phone: contact.phone,
       alternate_phone: contact.alternatePhone,
       department: contact.department,
-      position: contact.role,
+      position: contact.position || undefined,
       role: contact.role,
-      preferred_channel: contact.preferred_channel,
+      // Omit when empty so the backend applies its default.
+      ...(contact.preferred_channel
+        ? { preferred_channel: contact.preferred_channel }
+        : {}),
     })),
   };
 }
@@ -320,7 +317,10 @@ export function buildUpdateContactsPayload(form: CustomerContact) {
       department: form.department,
       position: form.position,
       role: form.role,
-      preferred_channel: form.preferred_channel,
+      // Omit when empty so the existing value is preserved.
+      ...(form.preferred_channel
+        ? { preferred_channel: form.preferred_channel }
+        : {}),
     },
 
     additional_contacts: form.additional_contacts.map((contact) => ({
@@ -331,9 +331,11 @@ export function buildUpdateContactsPayload(form: CustomerContact) {
       phone: contact.phone,
       alternate_phone: contact.alternate_phone,
       department: contact.department,
-      position: contact.role,
+      position: contact.position,
       role: contact.role,
-      preferred_channel: contact.preferred_channel,
+      ...(contact.preferred_channel
+        ? { preferred_channel: contact.preferred_channel }
+        : {}),
     })),
   };
 }

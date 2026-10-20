@@ -29,7 +29,7 @@ from app.crm.email_content.customer_visit import on_scheduled
 from fastapi import HTTPException, status,UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
-from app.crm.model import Customers, CustomerContact
+from app.crm.model import Customers, CustomerContact, PreferredChannel
 from app.crm.schemas import (
     CustomerCreate,
     CustomerUpdate,
@@ -793,11 +793,12 @@ def sync_primary_contact(
         .first()
     )
 
-    # For individuals, company email flows into primary contact email
-    # and customer name flows into primary contact name.
+    # For individuals, customer name flows into primary contact name.
+    # Company email is only shown for companies, so fall back to the
+    # customer email when it is not set.
     if customer.entity_type == "individual":
         name_source = customer.customer_name
-        email_source = customer.company_email
+        email_source = customer.company_email or customer.email
     else:
         name_source = customer.contact_person
         email_source = customer.email
@@ -817,7 +818,10 @@ def sync_primary_contact(
         alternate_phone=customer.alternate_phone,
         position=customer.role,
         role=customer.role,
-        preferred_channel=customer.preferred_channel,
+        # The contact column is NOT NULL; customers may leave the
+        # channel unset, so fall back to email.
+        preferred_channel=customer.preferred_channel
+        or PreferredChannel.email,
     )
 
     if primary:

@@ -89,7 +89,7 @@ class Customers(Base):
     industry = Column(String(100))
     customer_type = Column(
         SAEnum(CustomerType),
-        nullable=False,
+        nullable=True,
     )
     sales_contact = Column(
     String(36),
@@ -201,7 +201,7 @@ class CustomerContact(Base):
 
     preferred_channel = Column(
         SAEnum(PreferredChannel),
-        nullable=False,
+        nullable=True,
         default=PreferredChannel.email,
     )
 

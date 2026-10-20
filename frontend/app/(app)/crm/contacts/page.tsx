@@ -87,7 +87,6 @@ const COLUMNS: Column<GroupedCustomerContact>[] = [
 
 export default function ContactsPage() {
   const { data: contacts = [], isLoading, isError } = useCustomerContacts();
-  console.log(contacts, "contacts");
   function groupContacts(
     contacts: CustomerContact[],
   ): GroupedCustomerContact[] {

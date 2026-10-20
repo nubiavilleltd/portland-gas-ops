@@ -355,7 +355,7 @@ export function buildCustomerPayload(
     preferred_products: form.preferredProducts,
     position: form.position,
     role: form.role,
-    preferred_channel: form.preferredChannel,
+    preferred_channel: form.preferredChannel || null,
 
     supply_method: form.supplyMethod || null,
     estimated_monthly_demand: form.estimatedMonthlyDemand || null,

@@ -388,7 +388,7 @@ export type CreateCustomerContactPayload = {
     department?: string;
     position?: string;
     role?: string;
-    preferred_channel: PreferredChannel;
+    preferred_channel?: PreferredChannel;
   }[];
 };
 

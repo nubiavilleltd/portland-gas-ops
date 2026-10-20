@@ -83,7 +83,7 @@ class CustomerContactResponse(BaseModel):
     phone: str
     alternate_phone: Optional[str]
 
-    preferred_channel: PreferredChannel
+    preferred_channel: Optional[PreferredChannel] = None
 
     is_primary: bool
 
