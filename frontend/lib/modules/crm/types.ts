@@ -19,7 +19,6 @@ export interface CustomerOnboarding {
   // Customer Information
   customer_name: string;
   entity_type: CustomerEntityType;
-  category: CustomerCategory;
   position: string;
   role: string;
   // Business Information
@@ -36,11 +35,7 @@ export interface CustomerOnboarding {
   phone: string;
   alternate_phone: string;
   // Address Information
-  country: string;
-  state: string;
-  city: string;
-  address_line1: string;
-  address_line2: string;
+  address: string;
   postal_code: string;
 
   // Commercial Information
@@ -71,12 +66,6 @@ export type CustomerStatus =
   | "active"
   | "inactive";
 
-export type CustomerCategory =
-  | "retail"
-  | "industrial"
-  | "government"
-  | "distributor";
-
 export type EntityType = "company" | "individual";
 
 export interface Customer {
@@ -87,8 +76,6 @@ export interface Customer {
   customerName: string;
 
   entityType: EntityType;
-
-  category: CustomerCategory;
 
   status: CustomerStatus;
 
@@ -110,15 +97,7 @@ export interface Customer {
 
   industry?: string;
 
-  addressLine1: string;
-
-  addressLine2?: string;
-
-  city: string;
-
-  state: string;
-
-  country: string;
+  address: string;
 
   postalCode?: string;
 
@@ -148,8 +127,6 @@ interface CustomerRow {
   customerNumber: string;
 
   customerName: string;
-
-  category: string;
 
   contactPerson: string;
 
@@ -203,13 +180,12 @@ export interface CustomerAttachment {
 export interface CustomerForm {
   customerName: string;
   entityType: EntityType | "";
-  category: CustomerCategory | "";
   companyEmail: string;
   rcNumber: string;
   tin: string;
   vatNumber: string;
   industry: string;
-  customerType: "potential" | "purchasing";
+  customerType: "potential" | "purchasing" | "";
   salesContact: string | null;
   otherIndustry: string;
   referrerType:
@@ -225,11 +201,7 @@ export interface CustomerForm {
   email: string;
   phone: string;
   alternatePhone: string | null;
-  country: string;
-  state: string;
-  city: string;
-  addressLine1: string;
-  addressLine2: string;
+  address: string;
   postalCode: string;
   preferredProducts: string[];
   supplyMethod: string;

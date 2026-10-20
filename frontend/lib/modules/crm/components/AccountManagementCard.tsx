@@ -82,7 +82,6 @@ export default function AccountManagementCard({
           employees={employees}
           value={selectedSalesContact}
           disabled={readOnly}
-          required
           onChange={(employee) =>
             onChange("salesContact", employee ? String(employee.id) : null)
           }
@@ -93,7 +92,6 @@ export default function AccountManagementCard({
           value={values.referrerType}
           options={REFERRER_TYPES}
           error={errors.referrerType}
-          required
           onValueChange={(value) => {
             onChange("referrerType", value as CustomerForm["referrerType"]);
             onChange("referrerId", "");
@@ -107,7 +105,6 @@ export default function AccountManagementCard({
             placeholder="Select employee"
             employees={employees}
             error={errors.referrerId}
-            required
             disabled={readOnly}
             value={selectedReferrer}
             onChange={(employee) =>
@@ -119,7 +116,6 @@ export default function AccountManagementCard({
             label="Referrer"
             placeholder="Select customer"
             value={values.referrerId}
-            required
             options={CUSTOMER_OPTIONS}
             error={errors.referrerId}
             onValueChange={(value) => onChange("referrerId", value)}
@@ -130,7 +126,6 @@ export default function AccountManagementCard({
             label="Referrer"
             placeholder="Enter referrer"
             value={values.referrerId}
-            required
             error={errors.referrerId}
             onChange={(e) => onChange("referrerId", e.target.value)}
             disabled={readOnly}

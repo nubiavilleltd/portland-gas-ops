@@ -314,7 +314,6 @@ def list_customers(
     status: Optional[str] = None,
     customer_type: Optional[str] = None,
     entity_type: Optional[str] = None,
-    category: Optional[str] = None,
     sales_contact: Optional[str] = None,
 ):
 
@@ -347,10 +346,6 @@ def list_customers(
             Customers.entity_type == entity_type,
         )
 
-    if category:
-        query = query.filter(
-            Customers.category == category,
-        )
     if sales_contact:
         query = query.filter(
             Customers.sales_contact == sales_contact
@@ -677,7 +672,6 @@ def create_customer(
         customer_no=customer_no,
         customer_name=data.customer_name,
         entity_type=data.entity_type,
-        category=data.category,
         company_email=data.company_email,
         rc_number=data.rc_number,
         tin=data.tin,
@@ -693,11 +687,7 @@ def create_customer(
         email=data.email,
         phone=data.phone,
         alternate_phone=data.alternate_phone,
-        country=data.country,
-        state=data.state,
-        city=data.city,
-        address_line1=data.address_line1,
-        address_line2=data.address_line2,
+        address_line1=data.address,
         postal_code=data.postal_code,
         preferred_products=data.preferred_products,
         supply_method=data.supply_method,
@@ -705,7 +695,7 @@ def create_customer(
         internal_notes=data.internal_notes,
         status=data.status,
         created_by=current_user.employee.id,
-         position=data.position,
+        position=data.position,
         role=data.role,
         preferred_channel=data.preferred_channel,
     )
@@ -744,6 +734,11 @@ def update_customer(
     customer = get_customer(db, customer_id)
 
     values = data.model_dump(exclude_unset=True)
+
+    # Map the API's single address field onto the DB column.
+    if "address" in values:
+        values["address_line1"] = values.pop("address")
+
     validate_customer_uniqueness(
             db=db,
             company_email=values.get(
@@ -798,17 +793,26 @@ def sync_primary_contact(
         .first()
     )
 
+    # For individuals, company email flows into primary contact email
+    # and customer name flows into primary contact name.
+    if customer.entity_type == "individual":
+        name_source = customer.customer_name
+        email_source = customer.company_email
+    else:
+        name_source = customer.contact_person
+        email_source = customer.email
+
     values = dict(
-        first_name=customer.contact_person.split(" ")[0]
-        if customer.contact_person
+        first_name=name_source.split(" ")[0]
+        if name_source
         else "",
 
-        last_name=" ".join(customer.contact_person.split(" ")[1:])
-        if customer.contact_person and len(customer.contact_person.split(" ")) > 1
+        last_name=" ".join(name_source.split(" ")[1:])
+        if name_source and len(name_source.split(" ")) > 1
         else "",
 
         department=customer.department,
-        email=customer.email,
+        email=email_source,
         phone=customer.phone,
         alternate_phone=customer.alternate_phone,
         position=customer.role,

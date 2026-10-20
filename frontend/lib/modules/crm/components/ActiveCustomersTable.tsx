@@ -35,14 +35,6 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
   },
 
   {
-    key: "category",
-    label: "Category",
-    render: (value) => (
-      <span className="capitalize">{String(value ?? "")}</span>
-    ),
-  },
-
-  {
     key: "customer_status",
     label: "Status",
     render: (_, customer) => (
