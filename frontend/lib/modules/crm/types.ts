@@ -26,7 +26,7 @@ export interface CustomerOnboarding {
   tin: string;
   vat_number: string;
   industry: string;
-  customer_type: string;
+  customer_type: string | null;
   referrer_type: string;
   // Primary Contact
   contact_person: string;
@@ -226,7 +226,7 @@ export interface CustomerContact {
   last_name: string;
   phone: string;
   position: string;
-  preferred_channel: PreferredChannel;
+  preferred_channel: PreferredChannel | null;
   role: string;
   updated_at: string;
   additional_contacts: ContactPerson[];
@@ -253,7 +253,7 @@ export interface ContactPerson {
   role: string;
   department: string;
 
-  preferred_channel: PreferredChannel;
+  preferred_channel: PreferredChannel | null;
   status: ContactPersonStatus;
 }
 

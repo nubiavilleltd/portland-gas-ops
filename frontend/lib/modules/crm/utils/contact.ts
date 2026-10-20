@@ -52,7 +52,7 @@ function validateContactFields(
     department?: string;
     position?: string;
     role?: string;
-    preferred_channel?: string;
+    preferred_channel?: string | null;
   },
   setError: (field: string, message: string) => void,
 ) {
