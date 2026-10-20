@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import Link from "next/link";
 import { useCustomerContacts, type CustomerContact } from "@/lib/modules/crm";
+import { formatDate } from "@/lib/utils";
 
 type GroupedCustomerContact = {
   id: string;
@@ -65,6 +66,14 @@ const COLUMNS: Column<GroupedCustomerContact>[] = [
     key: "email",
     label: "Email",
     render: (_, record) => record?.primary_contact?.email,
+  },
+
+  {
+    key: "created_at",
+    label: "Created",
+    getSearchValue: (row) => row.primary_contact?.created_at ?? "",
+    render: (_, record) =>
+      formatDate(record.primary_contact?.created_at ?? null),
   },
 
   {

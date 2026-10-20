@@ -8,6 +8,7 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import ApprovalBadge from "@/components/ui/ApprovalBadge";
 import Button from "@/components/ui/Button";
 import { useCustomers } from "@/lib/modules/crm";
+import { formatDate } from "@/lib/utils";
 
 import { type CustomerOnboarding } from "@/lib/modules/crm";
 
@@ -47,6 +48,13 @@ const COLUMNS: Column<CustomerOnboarding>[] = [
   {
     key: "phone",
     label: "Phone",
+  },
+
+  {
+    key: "created_at",
+    label: "Created",
+    getSearchValue: (row) => formatDate(row.created_at ?? null),
+    render: (value) => formatDate((value as string) ?? null),
   },
 
   {
