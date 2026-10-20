@@ -35,7 +35,6 @@ export default function ContactDetailsPage() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
   const { data: contacts = [], isLoading } = useCustomerContactDetails(id);
-  console.log({ contacts }, "contacts");
   const primaryContact = contacts.find((c) => c.is_primary);
   const { entries } = useCRMActivityByCustomer(id);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -153,7 +152,6 @@ export default function ContactDetailsPage() {
     return <ContactDetailsPageSkeleton />;
   }
   if (!primaryContact || !form) return null;
-  console.log(form);
 
   const requester = employees.find(
     (employee) => employee.id === form?.created_by,

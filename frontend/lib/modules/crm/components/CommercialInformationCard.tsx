@@ -28,7 +28,6 @@ export default function CommercialInformationCard({
   onChange,
 }: Props) {
   const { products, isLoading, error, refetch } = useProductPicker();
-  console.log(products, "products");
   const productOptions = isLoading
     ? [{ label: "Loading products...", value: "", disabled: true }]
     : products

@@ -64,6 +64,15 @@ export function useCreateCustomer() {
       queryClient.invalidateQueries({
         queryKey: ["crm", "customers"],
       });
+
+      // Creating a customer also creates its primary contact.
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-contacts"],
+      });
     },
   });
 }
@@ -92,11 +101,15 @@ export function useCreateCustomerContacts() {
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["customer-contacts"],
+        queryKey: ["crm", "customer-contacts"],
       });
 
       queryClient.invalidateQueries({
-        queryKey: ["customers"],
+        queryKey: ["crm", "contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customers"],
       });
     },
   });
@@ -226,12 +239,17 @@ export function useUpdateCustomerContacts() {
 
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ["customer-contacts", variables.customerId],
+        queryKey: ["crm", "customer-contacts", variables.customerId],
       });
 
       queryClient.invalidateQueries({
-        queryKey: ["customer-contacts"],
+        queryKey: ["crm", "customer-contacts"],
       });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "contacts"],
+      });
+
       queryClient.invalidateQueries({
         queryKey: ["crm", "activity", variables.customerId],
       });
@@ -287,6 +305,15 @@ export function useUpdateCustomer() {
 
       queryClient.invalidateQueries({
         queryKey: ["crm", "activity", customer.id],
+      });
+
+      // Customer updates sync to its primary contact.
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "contacts"],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["crm", "customer-contacts"],
       });
     },
   });
