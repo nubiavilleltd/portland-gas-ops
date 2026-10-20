@@ -63,7 +63,6 @@ export default function PrimaryContactCard({
         <FormInput
           label="Department"
           placeholder="Enter Department"
-          required
           value={values.department}
           error={errors?.department}
           readOnly={readOnly}
@@ -126,14 +125,12 @@ export default function PrimaryContactCard({
           placeholder="Enter Role"
           disabled={readOnly}
           error={errors.role}
-          required
           onChange={(e) => onChange?.("role", e.target.value)}
         />
         <FormSelect
           label="Preferred Contact Channel"
           value={values.preferredChannel}
           disabled={readOnly}
-          required
           error={errors.preferredChannel}
           options={[
             { label: "Email", value: "email" },

@@ -1,11 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 from decimal import Decimal
 from enum import Enum
 
 from app.crm.model import (
-    CustomerCategory,
     CustomerEntityType,
     CustomerStatus,
     CustomerType,
@@ -101,13 +100,12 @@ class CustomerContactResponse(BaseModel):
 class CustomerCreate(BaseModel):
     customer_name: str = Field(min_length=1, max_length=200)
     entity_type: CustomerEntityType
-    category: CustomerCategory
     company_email: Optional[EmailStr] = None
     rc_number: Optional[str] = Field(default=None, max_length=50)
     tin: Optional[str] = Field(default=None, max_length=50)
     vat_number: Optional[str] = Field(default=None, max_length=50)
     industry: Optional[str] = Field(default=None, max_length=100)
-    customer_type: CustomerType
+    customer_type: Optional[CustomerType] = None
     sales_contact: Optional[str] = None
     referrer_type: Optional[ReferrerType] = None
     referrer_id: Optional[str] = None
@@ -117,11 +115,7 @@ class CustomerCreate(BaseModel):
     email: EmailStr
     phone: str
     alternate_phone: Optional[str] = None
-    country: str
-    state: Optional[str] = None
-    city: Optional[str] = None
-    address_line1: str
-    address_line2: Optional[str] = None
+    address: str = Field(min_length=1, max_length=500)
     postal_code: Optional[str] = None
     preferred_products: List[str] = Field(default_factory=list)
     supply_method: Optional[str] = None
@@ -132,15 +126,20 @@ class CustomerCreate(BaseModel):
     role: Optional[str] = None
     preferred_channel: Optional[PreferredChannel] = None
 
+    @model_validator(mode="after")
+    def validate_company_email_for_company(self):
+        if self.entity_type == CustomerEntityType.company and not self.company_email:
+            raise ValueError("Company email is required for company entity type.")
+        return self
+
 
 class CustomerUpdate(BaseModel):
     customer_name: Optional[str] = None
     entity_type: Optional[CustomerEntityType] = None
-    category: Optional[CustomerCategory] = None
     company_email: Optional[EmailStr] = None
     rc_number: Optional[str] = None
     tin: Optional[str] = None
-    vat_number: Optional[str] = None    
+    vat_number: Optional[str] = None
     logo_url: Optional[str] = Field(default=None, max_length=1000)
 
     industry: Optional[str] = None
@@ -153,11 +152,7 @@ class CustomerUpdate(BaseModel):
     email: Optional[EmailStr] = None
     phone: Optional[str] = None
     alternate_phone: Optional[str] = None
-    country: Optional[str] = None
-    state: Optional[str] = None
-    city: Optional[str] = None
-    address_line1: Optional[str] = None
-    address_line2: Optional[str] = None
+    address: Optional[str] = Field(default=None, max_length=500)
     postal_code: Optional[str] = None
     preferred_products: Optional[List[str]] = None
     supply_method: Optional[str] = None
@@ -167,6 +162,12 @@ class CustomerUpdate(BaseModel):
     position: Optional[str] = None
     role: Optional[str] = None
     preferred_channel: Optional[PreferredChannel] = None
+
+    @model_validator(mode="after")
+    def validate_company_email_for_company(self):
+        if self.entity_type == CustomerEntityType.company and not self.company_email:
+            raise ValueError("Company email is required for company entity type.")
+        return self
 
 
 class CustomerListItem(BaseModel):
@@ -178,8 +179,6 @@ class CustomerListItem(BaseModel):
 
     entity_type: CustomerEntityType
 
-    category: CustomerCategory
-
     company_email: Optional[str]
     logo_url: Optional[str] = Field(default=None, max_length=1000)
 
@@ -188,26 +187,21 @@ class CustomerListItem(BaseModel):
     vat_number: Optional[str]
     industry: Optional[str]
 
-    customer_type: CustomerType
+    customer_type: Optional[CustomerType]
 
     sales_contact: Optional[str]
 
     referrer_type: Optional[ReferrerType]
     referrer_id: Optional[str]
 
-    contact_person: str
+    contact_person: Optional[str]
     department: Optional[str]
 
     email: Optional[str]
     phone: str
     alternate_phone: Optional[str]
 
-    country: str
-    state: Optional[str]
-    city: Optional[str]
-
-    address_line1: str
-    address_line2: Optional[str]
+    address: str
 
     postal_code: Optional[str]
 
@@ -231,27 +225,22 @@ class CustomerResponse(BaseModel):
     customer_no: str
     customer_name: str
     entity_type: CustomerEntityType
-    category: CustomerCategory
     company_email: Optional[str]
     logo_url: Optional[str] = Field(default=None, max_length=1000)
     rc_number: Optional[str]
     tin: Optional[str]
     vat_number: Optional[str]
     industry: Optional[str]
-    customer_type: CustomerType
+    customer_type: Optional[CustomerType]
     sales_contact: Optional[str]
     referrer_type: Optional[ReferrerType]
     referrer_id: Optional[str]
-    contact_person: str
+    contact_person: Optional[str]
     department: Optional[str]
     email: Optional[str]
     phone: str
     alternate_phone: Optional[str]
-    country: str
-    state: Optional[str]
-    city: Optional[str]
-    address_line1: str
-    address_line2: Optional[str]
+    address: str
     postal_code: Optional[str]
     preferred_products: Optional[List[str]]
     supply_method: Optional[str]

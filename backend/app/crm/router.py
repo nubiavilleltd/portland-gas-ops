@@ -245,8 +245,6 @@ def list_customers(
     status: Optional[str] = Query(None),
     entity_type: Optional[str] = Query(None),
     customer_type: Optional[str] = Query(None),
-    category: Optional[str] = Query(None),
-
     sales_contact: Optional[str] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -259,7 +257,6 @@ def list_customers(
         status=status,
         entity_type=entity_type,
         customer_type=customer_type,
-        category=category,
         sales_contact=sales_contact,
     )
 
@@ -408,16 +405,6 @@ def entity_types():
     return [
         "company",
         "individual",
-    ]
-
-
-@router.get("/lookup/categories")
-def customer_categories():
-    return [
-        "retail",
-        "distributor",
-        "industrial",
-        "government",
     ]
 
 

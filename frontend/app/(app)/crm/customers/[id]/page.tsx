@@ -236,7 +236,6 @@ export default function CustomerDetailsPage() {
           values={{
             customerName: customer.customer_name,
             entityType: customer.entity_type,
-            category: customer.category,
             companyEmail: customer.company_email,
           }}
         />
@@ -329,11 +328,7 @@ export default function CustomerDetailsPage() {
         <AddressInformationCard
           readOnly={readOnly}
           values={{
-            country: customer.country,
-            state: customer.state,
-            city: customer.city,
-            addressLine1: customer.address_line1,
-            addressLine2: customer.address_line2 ?? "",
+            address: customer.address ?? "",
             postalCode: customer.postal_code ?? "",
           }}
         />

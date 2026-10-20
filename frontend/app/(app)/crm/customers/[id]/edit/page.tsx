@@ -58,7 +58,6 @@ export default function EditCustomerPage() {
   const [form, setForm] = useState<any>({
     customerName: "",
     entityType: "company",
-    category: "",
     rcNumber: "",
     tin: "",
     vatNumber: "",
@@ -72,11 +71,7 @@ export default function EditCustomerPage() {
     email: "",
     phone: "",
     alternatePhone: "",
-    country: "",
-    state: "",
-    city: "",
-    addressLine1: "",
-    addressLine2: "",
+    address: "",
     postalCode: "",
     companyEmail: "",
     preferredProducts: [],
@@ -96,7 +91,6 @@ export default function EditCustomerPage() {
     setForm({
       customerName: customer.customer_name ?? "",
       entityType: customer.entity_type ?? "company",
-      category: customer.category ?? "",
       rcNumber: customer.rc_number ?? "",
       tin: customer.tin ?? "",
       vatNumber: customer.vat_number ?? "",
@@ -111,11 +105,7 @@ export default function EditCustomerPage() {
       phone: customer.phone ?? "",
       alternatePhone: customer.alternate_phone ?? "",
       companyEmail: customer.company_email ?? "",
-      country: customer.country ?? "Nigeria",
-      state: customer.state ?? "",
-      city: customer.city ?? "",
-      addressLine1: customer.address_line1 ?? "",
-      addressLine2: customer.address_line2 ?? "",
+      address: customer.address ?? "",
       postalCode: customer.postal_code ?? "",
       preferredProducts: customer.preferred_products ?? [],
       supplyMethod: customer.supply_method ?? "",
@@ -128,10 +118,20 @@ export default function EditCustomerPage() {
   }, [customer]);
 
   function handleChange(field: string, value: any) {
-    setForm((prev: any) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setForm((prev: any) => {
+      const next = { ...prev, [field]: value };
+
+      // For individuals, contact person mirrors customer name.
+      if (field === "entityType" && value === "individual") {
+        next.contactPerson = prev.customerName;
+      }
+
+      if (field === "customerName" && prev.entityType === "individual") {
+        next.contactPerson = value;
+      }
+
+      return next;
+    });
 
     if (errors[field]) {
       setErrors((prev) => ({
@@ -345,7 +345,6 @@ export default function EditCustomerPage() {
             customerName: form.customerName,
             entityType: form.entityType,
             companyEmail: form.companyEmail,
-            category: form.category,
           }}
           errors={errors}
           onChange={handleChange}
@@ -380,11 +379,7 @@ export default function EditCustomerPage() {
 
         <AddressInformationCard
           values={{
-            country: form.country,
-            state: form.state,
-            city: form.city,
-            addressLine1: form.addressLine1,
-            addressLine2: form.addressLine2,
+            address: form.address,
             postalCode: form.postalCode,
           }}
           errors={errors}

@@ -1,15 +1,8 @@
 import { Briefcase, Building2, Factory, Landmark, Store } from "lucide-react";
 
-import type { CustomerCategory, CustomerStatus, EntityType } from "./types";
+import type { CustomerStatus, EntityType } from "./types";
 
 export const ENTITY_TYPES: EntityType[] = ["company", "individual"];
-
-export const CUSTOMER_CATEGORIES: CustomerCategory[] = [
-  "retail",
-  "industrial",
-  "government",
-  "distributor",
-];
 
 export const CUSTOMER_STATUSES: CustomerStatus[] = [
   "draft",

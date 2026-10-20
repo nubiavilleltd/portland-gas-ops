@@ -4,13 +4,12 @@ import Card from "@/components/ui/Card";
 import FormInput from "@/components/forms/FormInput";
 import SelectInput from "@/components/forms/SelectInput";
 
-import { CUSTOMER_CATEGORIES, ENTITY_TYPES } from "../constants";
+import { ENTITY_TYPES } from "../constants";
 
 interface Props {
   values: {
     customerName: string;
     entityType: string;
-    category: string;
     companyEmail: string;
   };
 
@@ -59,27 +58,17 @@ export default function CustomerInformationCard({
           onValueChange={(value) => onChange?.("entityType", value)}
         />
 
-        <SelectInput
-          label="Customer Category"
-          required
-          value={values.category}
-          error={errors?.category}
-          disabled={readOnly}
-          options={CUSTOMER_CATEGORIES.map((category) => ({
-            label: category.charAt(0).toUpperCase() + category.slice(1),
-            value: category,
-          }))}
-          onValueChange={(value) => onChange?.("category", value)}
-        />
-        <FormInput
-          label="Email"
-          required
-          value={values.companyEmail}
-          error={errors?.companyEmail}
-          placeholder="Enter Company Email"
-          readOnly={readOnly}
-          onChange={(e) => onChange?.("companyEmail", e.target.value)}
-        />
+        {values.entityType === "company" && (
+          <FormInput
+            label="Company Email"
+            required
+            value={values.companyEmail}
+            error={errors?.companyEmail}
+            placeholder="Enter Company Email"
+            readOnly={readOnly}
+            onChange={(e) => onChange?.("companyEmail", e.target.value)}
+          />
+        )}
       </div>
     </Card>
   );

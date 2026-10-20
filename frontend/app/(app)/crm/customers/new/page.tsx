@@ -37,7 +37,6 @@ export default function NewCustomerPage() {
   const [form, setForm] = useState<CustomerForm>({
     customerName: "",
     entityType: "",
-    category: "",
     companyEmail: "",
     rcNumber: "",
     tin: "",
@@ -52,11 +51,7 @@ export default function NewCustomerPage() {
     email: "",
     phone: "",
     alternatePhone: "",
-    country: "",
-    state: "",
-    city: "",
-    addressLine1: "",
-    addressLine2: "",
+    address: "",
     postalCode: "",
     preferredProducts: [],
     supplyMethod: "",
@@ -75,10 +70,20 @@ export default function NewCustomerPage() {
     field: K,
     value: CustomerForm[K],
   ) {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+
+      // For individuals, contact person mirrors customer name.
+      if (field === "entityType" && value === "individual") {
+        next.contactPerson = prev.customerName;
+      }
+
+      if (field === "customerName" && prev.entityType === "individual") {
+        next.contactPerson = value as string;
+      }
+
+      return next;
+    });
 
     if (errors[field]) {
       setErrors((prev) => ({
@@ -278,7 +283,6 @@ export default function NewCustomerPage() {
           values={{
             customerName: form.customerName,
             entityType: form.entityType,
-            category: form.category,
             companyEmail: form.companyEmail,
           }}
           errors={errors}
@@ -316,11 +320,7 @@ export default function NewCustomerPage() {
 
         <AddressInformationCard
           values={{
-            country: form.country,
-            state: form.state,
-            city: form.city,
-            addressLine1: form.addressLine1,
-            addressLine2: form.addressLine2,
+            address: form.address,
             postalCode: form.postalCode,
           }}
           errors={errors}

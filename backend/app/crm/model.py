@@ -28,13 +28,6 @@ class CustomerEntityType(str, enum.Enum):
     individual = "individual"
 
 
-class CustomerCategory(str, enum.Enum):
-    retail = "retail"
-    industrial = "industrial"
-    government = "government"
-    distributor = "distributor"
-
-
 class CustomerType(str, enum.Enum):
     potential = "potential"
     purchasing = "purchasing"
@@ -89,10 +82,6 @@ class Customers(Base):
         SAEnum(CustomerEntityType),
         nullable=False,
     )
-    category = Column(
-        SAEnum(CustomerCategory),
-        nullable=False,
-    )
     company_email = Column(String(150))
     rc_number = Column(String(50))
     tin = Column(String(50))
@@ -123,11 +112,7 @@ class Customers(Base):
     email = Column(String(150), nullable=False)
     phone = Column(String(30), nullable=False)
     alternate_phone = Column(String(30))
-    country = Column(String(100), nullable=False)
-    state = Column(String(100))
-    city = Column(String(100))
-    address_line1 = Column(String(255), nullable=False)
-    address_line2 = Column(String(255))
+    address_line1 = Column(String(500), nullable=False)
     postal_code = Column(String(20))
     preferred_products = Column(JSON)
     supply_method = Column(String(100))
@@ -167,6 +152,10 @@ class Customers(Base):
         back_populates="customer",
         cascade="all, delete-orphan",
     )
+
+    @property
+    def address(self) -> str:
+        return self.address_line1 or ""
 
 
 # ==========================================================

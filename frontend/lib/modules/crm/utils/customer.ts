@@ -12,11 +12,7 @@ const MAX_LENGTHS = {
   email: 150,
   phone: 30,
   alternatePhone: 30,
-  country: 100,
-  state: 100,
-  city: 100,
-  addressLine1: 255,
-  addressLine2: 255,
+  address: 500,
   postalCode: 20,
   supplyMethod: 100,
   estimatedMonthlyDemand: 100,
@@ -27,12 +23,6 @@ const MAX_LENGTHS = {
 } as const;
 
 const ENTITY_TYPES = ["company", "individual"] as const;
-const CUSTOMER_CATEGORIES = [
-  "retail",
-  "industrial",
-  "government",
-  "distributor",
-] as const;
 
 const CUSTOMER_TYPES = ["potential", "purchasing"] as const;
 
@@ -128,20 +118,22 @@ export function validateCustomer(form: CustomerForm) {
     errors.entityType = "Select a valid entity type.";
   }
 
-  if (!form.category) {
-    errors.category = "Customer category is required.";
-  } else if (!isOneOf(form.category, CUSTOMER_CATEGORIES)) {
-    errors.category = "Select a valid customer category.";
-  }
-
   const companyEmail = form.companyEmail.trim();
 
-  if (!companyEmail) {
-    errors.companyEmail = "Company email is required.";
-  } else if (companyEmail.length > MAX_LENGTHS.companyEmail) {
-    errors.companyEmail = `Company email cannot exceed ${MAX_LENGTHS.companyEmail} characters.`;
-  } else if (!validateEmail(companyEmail)) {
-    errors.companyEmail = "Enter a valid company email address.";
+  if (form.entityType === "company") {
+    if (!companyEmail) {
+      errors.companyEmail = "Company email is required.";
+    } else if (companyEmail.length > MAX_LENGTHS.companyEmail) {
+      errors.companyEmail = `Company email cannot exceed ${MAX_LENGTHS.companyEmail} characters.`;
+    } else if (!validateEmail(companyEmail)) {
+      errors.companyEmail = "Enter a valid company email address.";
+    }
+  } else if (companyEmail) {
+    if (companyEmail.length > MAX_LENGTHS.companyEmail) {
+      errors.companyEmail = `Company email cannot exceed ${MAX_LENGTHS.companyEmail} characters.`;
+    } else if (!validateEmail(companyEmail)) {
+      errors.companyEmail = "Enter a valid company email address.";
+    }
   }
 
   // ============================================================
@@ -151,9 +143,7 @@ export function validateCustomer(form: CustomerForm) {
   if (form.entityType === "company") {
     const rcNumber = form.rcNumber.trim();
 
-    if (!rcNumber) {
-      errors.rcNumber = "RC Number is required for companies.";
-    } else if (rcNumber.length > MAX_LENGTHS.rcNumber) {
+    if (rcNumber && rcNumber.length > MAX_LENGTHS.rcNumber) {
       errors.rcNumber = `RC Number cannot exceed ${MAX_LENGTHS.rcNumber} characters.`;
     }
 
@@ -178,9 +168,7 @@ export function validateCustomer(form: CustomerForm) {
   // Industry is currently required by your form logic.
   const industry = form.industry.trim();
 
-  if (!industry) {
-    errors.industry = "Industry is required.";
-  } else if (industry.length > MAX_LENGTHS.industry) {
+  if (industry && industry.length > MAX_LENGTHS.industry) {
     errors.industry = `Industry cannot exceed ${MAX_LENGTHS.industry} characters.`;
   }
 
@@ -198,9 +186,7 @@ export function validateCustomer(form: CustomerForm) {
 
   const department = form.department.trim();
 
-  if (!department) {
-    errors.department = "Department is required.";
-  } else if (department.length > MAX_LENGTHS.department) {
+  if (department && department.length > MAX_LENGTHS.department) {
     errors.department = `Department cannot exceed ${MAX_LENGTHS.department} characters.`;
   }
 
@@ -246,60 +232,28 @@ export function validateCustomer(form: CustomerForm) {
 
   const role = form.role.trim();
 
-  if (!role) {
-    errors.role = "Role is required.";
-  } else if (role.length > MAX_LENGTHS.role) {
+  if (role && role.length > MAX_LENGTHS.role) {
     errors.role = `Role cannot exceed ${MAX_LENGTHS.role} characters.`;
   }
 
-  if (!form.preferredChannel) {
-    errors.preferredChannel = "Preferred channel is required.";
-  } else if (!isOneOf(form.preferredChannel, PREFERRED_CHANNELS)) {
-    errors.preferredChannel = "Select a valid preferred channel.";
-  } else if (form.preferredChannel.length > MAX_LENGTHS.preferredChannel) {
-    errors.preferredChannel = `Preferred channel cannot exceed ${MAX_LENGTHS.preferredChannel} characters.`;
+  if (form.preferredChannel) {
+    if (!isOneOf(form.preferredChannel, PREFERRED_CHANNELS)) {
+      errors.preferredChannel = "Select a valid preferred channel.";
+    } else if (form.preferredChannel.length > MAX_LENGTHS.preferredChannel) {
+      errors.preferredChannel = `Preferred channel cannot exceed ${MAX_LENGTHS.preferredChannel} characters.`;
+    }
   }
 
   // ============================================================
   // ADDRESS
   // ============================================================
 
-  const country = form.country.trim();
+  const address = form.address.trim();
 
-  if (!country) {
-    errors.country = "Country is required.";
-  } else if (country.length > MAX_LENGTHS.country) {
-    errors.country = `Country cannot exceed ${MAX_LENGTHS.country} characters.`;
-  }
-
-  const state = form.state.trim();
-
-  if (!state) {
-    errors.state = "State is required.";
-  } else if (state.length > MAX_LENGTHS.state) {
-    errors.state = `State cannot exceed ${MAX_LENGTHS.state} characters.`;
-  }
-
-  const city = form.city.trim();
-
-  if (!city) {
-    errors.city = "City is required.";
-  } else if (city.length > MAX_LENGTHS.city) {
-    errors.city = `City cannot exceed ${MAX_LENGTHS.city} characters.`;
-  }
-
-  const addressLine1 = form.addressLine1.trim();
-
-  if (!addressLine1) {
-    errors.addressLine1 = "Address is required.";
-  } else if (addressLine1.length > MAX_LENGTHS.addressLine1) {
-    errors.addressLine1 = `Address cannot exceed ${MAX_LENGTHS.addressLine1} characters.`;
-  }
-
-  const addressLine2 = form.addressLine2.trim();
-
-  if (addressLine2.length > MAX_LENGTHS.addressLine2) {
-    errors.addressLine2 = `Address Line 2 cannot exceed ${MAX_LENGTHS.addressLine2} characters.`;
+  if (!address) {
+    errors.address = "Address is required.";
+  } else if (address.length > MAX_LENGTHS.address) {
+    errors.address = `Address cannot exceed ${MAX_LENGTHS.address} characters.`;
   }
 
   const postalCode = form.postalCode.trim();
@@ -310,30 +264,20 @@ export function validateCustomer(form: CustomerForm) {
   }
 
   // ============================================================
-  // ACCOUNT MANAGEMENT
+  // ACCOUNT MANAGEMENT (all optional)
   // ============================================================
 
-  if (!form.customerType) {
-    errors.customerType = "Customer type is required.";
-  } else if (!isOneOf(form.customerType, CUSTOMER_TYPES)) {
+  if (form.customerType && !isOneOf(form.customerType, CUSTOMER_TYPES)) {
     errors.customerType = "Select a valid customer type.";
   }
 
-  if (!form.salesContact) {
-    errors.salesContact = "Sales contact is required.";
-  }
-
-  if (!form.referrerType) {
-    errors.referrerType = "Referrer type is required.";
-  } else if (!isOneOf(form.referrerType, REFERRER_TYPES)) {
+  if (form.referrerType && !isOneOf(form.referrerType, REFERRER_TYPES)) {
     errors.referrerType = "Select a valid referrer type.";
   }
 
   const referrerId = form.referrerId.trim();
 
-  if (!referrerId) {
-    errors.referrerId = "Referrer is required.";
-  } else if (referrerId.length > MAX_LENGTHS.referrerId) {
+  if (referrerId && referrerId.length > MAX_LENGTHS.referrerId) {
     errors.referrerId = `Referrer cannot exceed ${MAX_LENGTHS.referrerId} characters.`;
   }
 
@@ -384,7 +328,6 @@ export function buildCustomerPayload(
     customer_name: form.customerName,
 
     entity_type: form.entityType,
-    category: form.category,
 
     company_email: form.companyEmail,
 
@@ -393,7 +336,7 @@ export function buildCustomerPayload(
     vat_number: form.vatNumber || null,
     industry:
       form.industry === "other" ? form.otherIndustry.trim() : form.industry,
-    customer_type: form.customerType,
+    customer_type: form.customerType || null,
 
     sales_contact: form.salesContact,
     referrer_type: form.referrerType || null,
@@ -406,12 +349,7 @@ export function buildCustomerPayload(
     phone: form.phone,
     alternate_phone: form.alternatePhone || null,
 
-    country: form.country,
-    state: form.state || null,
-    city: form.city || null,
-
-    address_line1: form.addressLine1,
-    address_line2: form.addressLine2 || null,
+    address: form.address,
     postal_code: form.postalCode || null,
 
     preferred_products: form.preferredProducts,
